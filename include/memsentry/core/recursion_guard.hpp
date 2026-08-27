@@ -4,8 +4,6 @@ namespace memsentry::core {
 
 #if defined(_MSC_VER)
 inline __declspec(thread) bool g_recursion_active = false;
-#elif defined(__GNUC__) || defined(__clang__)
-inline __thread bool g_recursion_active = false;
 #else
 inline thread_local bool g_recursion_active = false;
 #endif
