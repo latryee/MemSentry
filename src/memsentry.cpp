@@ -51,8 +51,8 @@ public:
     }
 
     void initialize(const Config& config) {
-        if (initialized_.exchange(true)) return;
         config_ = config;
+        if (initialized_.exchange(true)) return;
         stacktrace::StackTraceProvider::instance().initialize();
 
         if (config_.auto_report_on_exit) {
