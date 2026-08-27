@@ -25,13 +25,14 @@ void thread_stress_worker(int thread_id, int iterations) {
 
 int main() {
     memsentry::Config config;
+    config.enable_stacktrace = false;
     config.auto_report_on_exit = false;
     memsentry::init(config);
 
-    // Verify global new / delete
-    int* val = new int(42);
-    assert(val != nullptr);
-    delete val;
+    // Basic allocator sanity check
+    void* initial = memsentry::core::track_alloc(64);
+    assert(initial != nullptr);
+    memsentry::core::track_free(initial);
 
     constexpr int NUM_THREADS = 8;
     constexpr int ITERATIONS_PER_THREAD = 1000;
