@@ -8,8 +8,7 @@
 
 namespace memsentry::core {
 
-#pragma pack(push, 1)
-struct BlockHeader {
+struct alignas(16) BlockHeader {
     uint64_t magic;
     uint64_t allocation_id;
     size_t requested_size;
@@ -18,7 +17,6 @@ struct BlockHeader {
     size_t alignment;
     const char* tag;
 };
-#pragma pack(pop)
 
 inline size_t align_up(size_t value, size_t alignment) noexcept {
     return (value + (alignment - 1)) & ~(alignment - 1);

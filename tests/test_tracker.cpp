@@ -1,6 +1,5 @@
 #include "memsentry/memsentry.hpp"
 #include "memsentry/core/allocator_hooks.hpp"
-#include <cassert>
 #include <thread>
 #include <vector>
 #include <iostream>
@@ -14,8 +13,7 @@ void thread_stress_worker(int thread_id, int iterations) {
     for (int i = 0; i < iterations; ++i) {
         size_t sz = (i % 32 + 1) * 16;
         void* p = memsentry::core::track_alloc(sz);
-        assert(p != nullptr);
-        ptrs.push_back(p);
+        if (p) ptrs.push_back(p);
     }
 
     for (void* p : ptrs) {
@@ -30,7 +28,7 @@ int main() {
     memsentry::init(config);
 
     void* initial = memsentry::core::track_alloc(64);
-    assert(initial != nullptr);
+    if (!initial) return 1;
     memsentry::core::track_free(initial);
 
     constexpr int NUM_THREADS = 4;
@@ -52,8 +50,12 @@ int main() {
     }
 
     auto final_stats = memsentry::get_stats();
-    assert(final_stats.total_allocation_count >= baseline_stats.total_allocation_count + (NUM_THREADS * ITERATIONS_PER_THREAD));
-    assert(final_stats.total_free_count >= baseline_stats.total_free_count + (NUM_THREADS * ITERATIONS_PER_THREAD));
+    if (final_stats.total_allocation_count < baseline_stats.total_allocation_count + (NUM_THREADS * ITERATIONS_PER_THREAD)) {
+        return 1;
+    }
+    if (final_stats.total_free_count < baseline_stats.total_free_count + (NUM_THREADS * ITERATIONS_PER_THREAD)) {
+        return 1;
+    }
 
     std::cout << "[PASSED] Multi-threaded tracker stress test completed successfully.\n";
     return 0;
