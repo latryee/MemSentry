@@ -3,9 +3,9 @@
 namespace memsentry::profiler {
 
 #if defined(_MSC_VER)
-inline __declspec(thread) const char* g_active_tag = nullptr;
+extern __declspec(thread) const char* g_active_tag;
 #else
-inline thread_local const char* g_active_tag = nullptr;
+extern thread_local const char* g_active_tag;
 #endif
 
 class ScopedTag {

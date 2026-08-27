@@ -37,17 +37,5 @@ jobs:
       - name: Build MemSentry
         run: cmake --build build --config ${{ matrix.build_type }} --parallel
 
-      - name: Run Direct Binary Tests (POSIX)
-        if: runner.os != 'Windows'
-        run: |
-          ./build/test_canary
-          ./build/test_tracker
-
-      - name: Run Direct Binary Tests (Windows)
-        if: runner.os == 'Windows'
-        run: |
-          .\build\${{ matrix.build_type }}\test_canary.exe
-          .\build\${{ matrix.build_type }}\test_tracker.exe
-
-      - name: Run CTest
+      - name: Run Tests
         run: ctest --test-dir build -C ${{ matrix.build_type }} --output-on-failure --verbose

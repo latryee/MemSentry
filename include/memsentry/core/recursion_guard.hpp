@@ -3,9 +3,9 @@
 namespace memsentry::core {
 
 #if defined(_MSC_VER)
-inline __declspec(thread) bool g_recursion_active = false;
+extern __declspec(thread) bool g_recursion_active;
 #else
-inline thread_local bool g_recursion_active = false;
+extern thread_local bool g_recursion_active;
 #endif
 
 class RecursionGuard {

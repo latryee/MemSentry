@@ -25,6 +25,22 @@
 #include <unistd.h>
 #endif
 
+namespace memsentry::core {
+#if defined(_MSC_VER)
+__declspec(thread) bool g_recursion_active = false;
+#else
+thread_local bool g_recursion_active = false;
+#endif
+}
+
+namespace memsentry::profiler {
+#if defined(_MSC_VER)
+__declspec(thread) const char* g_active_tag = nullptr;
+#else
+thread_local const char* g_active_tag = nullptr;
+#endif
+}
+
 namespace memsentry {
 
 class Manager {
