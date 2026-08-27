@@ -6,6 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 include(GNUInstallDirs)
+find_package(Threads REQUIRED)
 
 set(MEMSENTRY_SOURCES
     src/memsentry.cpp
@@ -39,13 +40,16 @@ target_include_directories(memsentry PUBLIC
 )
 
 if (WIN32)
-    target_link_libraries(memsentry PUBLIC dbghelp)
+    target_link_libraries(memsentry PUBLIC dbghelp Threads::Threads)
     if (MSVC)
-        target_compile_options(memsentry PRIVATE /W4 /permissive- /Zc:__cplusplus)
+        target_compile_options(memsentry PRIVATE /EHsc /W4 /permissive- /Zc:__cplusplus /wd4100 /wd4505)
     endif()
+elseif (APPLE)
+    target_link_libraries(memsentry PUBLIC Threads::Threads)
+    target_compile_options(memsentry PRIVATE -Wall -Wextra -Wpedantic -Wno-unused-parameter)
 else()
-    target_link_libraries(memsentry PUBLIC pthread dl)
-    target_compile_options(memsentry PRIVATE -Wall -Wextra -Wpedantic)
+    target_link_libraries(memsentry PUBLIC Threads::Threads ${CMAKE_DL_LIBS})
+    target_compile_options(memsentry PRIVATE -Wall -Wextra -Wpedantic -Wno-unused-parameter)
 endif()
 
 option(MEMSENTRY_BUILD_EXAMPLES "Build MemSentry examples" ON)

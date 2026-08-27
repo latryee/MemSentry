@@ -11,9 +11,18 @@
 #if defined(_WIN32)
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#elif defined(__linux__)
+#include <unistd.h>
+#if defined(__has_include)
+#if __has_include(<sys/syscall.h>)
+#include <sys/syscall.h>
+#endif
+#endif
+#elif defined(__APPLE__)
+#include <pthread.h>
+#include <unistd.h>
 #else
 #include <unistd.h>
-#include <sys/syscall.h>
 #endif
 
 namespace memsentry {
@@ -200,8 +209,12 @@ private:
     static uint32_t current_thread_id() noexcept {
 #if defined(_WIN32)
         return static_cast<uint32_t>(GetCurrentThreadId());
-#elif defined(__linux__)
+#elif defined(__linux__) && defined(SYS_gettid)
         return static_cast<uint32_t>(syscall(SYS_gettid));
+#elif defined(__APPLE__)
+        uint64_t tid = 0;
+        pthread_threadid_np(nullptr, &tid);
+        return static_cast<uint32_t>(tid);
 #else
         return static_cast<uint32_t>(std::hash<std::thread::id>{}(std::this_thread::get_id()));
 #endif

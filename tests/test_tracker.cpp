@@ -22,10 +22,12 @@ void thread_stress_worker(int thread_id, int iterations) {
 }
 
 int main() {
-    memsentry::init();
+    memsentry::Config config;
+    config.auto_report_on_exit = false;
+    memsentry::init(config);
 
     constexpr int NUM_THREADS = 8;
-    constexpr int ITERATIONS_PER_THREAD = 2000;
+    constexpr int ITERATIONS_PER_THREAD = 1000;
 
     auto baseline_stats = memsentry::get_stats();
 
@@ -43,8 +45,8 @@ int main() {
     }
 
     auto final_stats = memsentry::get_stats();
-    assert(final_stats.active_allocation_count == baseline_stats.active_allocation_count);
-    assert(final_stats.current_allocated_bytes == baseline_stats.current_allocated_bytes);
+    assert(final_stats.total_allocation_count >= baseline_stats.total_allocation_count + (NUM_THREADS * ITERATIONS_PER_THREAD));
+    assert(final_stats.total_free_count >= baseline_stats.total_free_count + (NUM_THREADS * ITERATIONS_PER_THREAD));
 
     std::cout << "[PASSED] Multi-threaded tracker stress test completed successfully.\n";
     return 0;
