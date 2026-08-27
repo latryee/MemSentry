@@ -74,9 +74,9 @@ if (MEMSENTRY_BUILD_TESTS)
 
     add_executable(test_tracker tests/test_tracker.cpp)
     target_link_libraries(test_tracker PRIVATE memsentry)
-    add_test(NAME test_tracker COMMAND test_tracker)
+    add_test(NAME test_tracker COMMAND $<TARGET_FILE:test_tracker>)
 
     add_executable(test_canary tests/test_canary.cpp)
     target_link_libraries(test_canary PRIVATE memsentry)
-    add_test(NAME test_canary COMMAND test_canary)
+    add_test(NAME test_canary COMMAND $<TARGET_FILE:test_canary>)
 endif()
