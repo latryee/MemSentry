@@ -1,4 +1,5 @@
 #include "memsentry/memsentry.hpp"
+#include "memsentry/core/allocator_hooks.hpp"
 #include <cassert>
 #include <thread>
 #include <vector>
@@ -12,12 +13,13 @@ void thread_stress_worker(int thread_id, int iterations) {
 
     for (int i = 0; i < iterations; ++i) {
         size_t sz = (i % 64 + 1) * 16;
-        void* p = ::operator new(sz);
+        void* p = memsentry::core::track_alloc(sz);
+        assert(p != nullptr);
         ptrs.push_back(p);
     }
 
     for (void* p : ptrs) {
-        ::operator delete(p);
+        memsentry::core::track_free(p);
     }
 }
 
@@ -25,6 +27,11 @@ int main() {
     memsentry::Config config;
     config.auto_report_on_exit = false;
     memsentry::init(config);
+
+    // Verify global new / delete
+    int* val = new int(42);
+    assert(val != nullptr);
+    delete val;
 
     constexpr int NUM_THREADS = 8;
     constexpr int ITERATIONS_PER_THREAD = 1000;
