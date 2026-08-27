@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 520" width="100%" height="100%">
+  <defs>
+    <filter id="shadow" x="-5%" y="-5%" width="110%" height="110%">
+      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#000000" flood-opacity="0.5" />
+    </filter>
+  </defs>
+
+  <!-- Terminal Window Background -->
+  <rect x="20" y="20" width="960" height="480" rx="10" fill="#0d1117" stroke="#30363d" stroke-width="1" filter="url(#shadow)" />
+
+  <!-- Terminal Header Bar -->
+  <path d="M 20 30 Q 20 20 30 20 L 970 20 Q 980 20 980 30 L 980 56 L 20 56 Z" fill="#161b22" />
+  <line x1="20" y1="56" x2="980" y2="56" stroke="#30363d" stroke-width="1" />
+
+  <!-- Buttons -->
+  <circle cx="44" cy="38" r="6" fill="#ff5f56" />
+  <circle cx="64" cy="38" r="6" fill="#ffbd2e" />
+  <circle cx="84" cy="38" r="6" fill="#27c93f" />
+
+  <text x="500" y="42" fill="#8b949e" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="12" text-anchor="middle">memsentry-cli — ./bin/01_basic_leak</text>
+
+  <!-- Terminal Text Output -->
+  <g font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="12.5" xml:space="preserve">
+    <!-- Prompt -->
+    <text x="45" y="85" fill="#7ee787">user@workstation</text>
+    <text x="175" y="85" fill="#8b949e">:</text>
+    <text x="185" y="85" fill="#79c0ff">~/memsentry</text>
+    <text x="270" y="85" fill="#f0f6fc">$ ./bin/01_basic_leak</text>
+
+    <!-- Audit Header -->
+    <text x="45" y="115" fill="#58a6ff">================================================================================</text>
+    <text x="45" y="133" fill="#f0f6fc" font-weight="700">                             MEMSENTRY AUDIT SUMMARY                            </text>
+    <text x="45" y="151" fill="#58a6ff">================================================================================</text>
+    <text x="45" y="171" fill="#f85149" font-weight="700"> [STATUS] MEMORY LEAKS DETECTED: 3 block(s) unreleased (7.91 MB)</text>
+    <text x="45" y="191" fill="#8b949e">--------------------------------------------------------------------------------</text>
+    <text x="45" y="211" fill="#c9d1d9"> Total Allocations   : <tspan fill="#f0f6fc">4 (7.91 MB)</tspan></text>
+    <text x="45" y="229" fill="#c9d1d9"> Total Deallocations : <tspan fill="#7ee787">1 (4 B)</tspan></text>
+    <text x="45" y="247" fill="#c9d1d9"> Peak Heap Usage     : <tspan fill="#ffa657">7.91 MB</tspan></text>
+    <text x="45" y="265" fill="#c9d1d9"> Active Heap Usage   : <tspan fill="#f85149">7.91 MB</tspan></text>
+    <text x="45" y="283" fill="#58a6ff">================================================================================</text>
+
+    <!-- Detailed Leak Section -->
+    <text x="45" y="310" fill="#f85149" font-weight="700">DETAILED LEAK REPORT:</text>
+    <text x="45" y="328" fill="#8b949e">--------------------------------------------------------------------------------</text>
+    <text x="45" y="348" fill="#d29922">[Leak #1]</text>
+    <text x="120" y="348" fill="#c9d1d9">ID: 3 | Size: <tspan fill="#f0f6fc" font-weight="700">8294400 bytes (7.91 MB)</tspan> | Addr: <tspan fill="#58a6ff">0x284225f8080</tspan> | Tag: [<tspan fill="#58a6ff">General</tspan>]</text>
+    
+    <!-- Stack frames -->
+    <text x="65" y="370" fill="#8b949e"># 0</text>
+    <text x="100" y="370" fill="#f0f6fc">operator new[](unsigned __int64)</text>
+    <text x="380" y="370" fill="#7ee787">(src/allocator_hooks.cpp:12)</text>
+
+    <text x="65" y="390" fill="#8b949e"># 1</text>
+    <text x="100" y="390" fill="#f0f6fc">TextureResource::TextureResource()</text>
+    <text x="380" y="390" fill="#7ee787">(examples/01_basic_leak.cpp:11)</text>
+
+    <text x="65" y="410" fill="#8b949e"># 2</text>
+    <text x="100" y="410" fill="#f0f6fc">simulate_leak()</text>
+    <text x="380" y="410" fill="#7ee787">(examples/01_basic_leak.cpp:19)</text>
+
+    <text x="65" y="430" fill="#8b949e"># 3</text>
+    <text x="100" y="430" fill="#f0f6fc">main()</text>
+    <text x="380" y="430" fill="#7ee787">(examples/01_basic_leak.cpp:30)</text>
+
+    <text x="45" y="455" fill="#8b949e">--------------------------------------------------------------------------------</text>
+    <text x="45" y="478" fill="#7ee787">✔ HTML dashboard written to: report_01.html</text>
+  </g>
+</svg>

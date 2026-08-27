@@ -1,0 +1,149 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 680" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0b0e14" />
+      <stop offset="100%" stop-color="#161b22" />
+    </linearGradient>
+    <linearGradient id="cardGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#161b22" />
+      <stop offset="100%" stop-color="#0d1117" />
+    </linearGradient>
+    <linearGradient id="barGrad1" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#1f6feb" />
+      <stop offset="100%" stop-color="#58a6ff" />
+    </linearGradient>
+    <linearGradient id="barGrad2" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#238636" />
+      <stop offset="100%" stop-color="#2ea043" />
+    </linearGradient>
+    <linearGradient id="barGrad3" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#da3633" />
+      <stop offset="100%" stop-color="#f85149" />
+    </linearGradient>
+    <filter id="dropShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="8" stdDeviation="16" flood-color="#000000" flood-opacity="0.6" />
+    </filter>
+  </defs>
+
+  <!-- Window Container -->
+  <rect x="20" y="20" width="1160" height="640" rx="12" fill="url(#bgGrad)" stroke="#30363d" stroke-width="1.5" filter="url(#dropShadow)" />
+
+  <!-- Window Header -->
+  <path d="M 20 32 Q 20 20 32 20 L 1168 20 Q 1180 20 1180 32 L 1180 64 L 20 64 Z" fill="#161b22" />
+  <line x1="20" y1="64" x2="1180" y2="64" stroke="#30363d" stroke-width="1" />
+  
+  <!-- Window Controls -->
+  <circle cx="44" cy="42" r="6" fill="#ff5f56" />
+  <circle cx="64" cy="42" r="6" fill="#ffbd2e" />
+  <circle cx="84" cy="42" r="6" fill="#27c93f" />
+
+  <text x="110" y="47" fill="#8b949e" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="500">MemSentry Interactive Heap Audit — report_01.html</text>
+
+  <!-- Dashboard Header -->
+  <text x="50" y="105" fill="#58a6ff" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="22" font-weight="700">MemSentry Heap Audit</text>
+  <rect x="1000" y="86" width="145" height="28" rx="14" fill="#da3633" />
+  <text x="1072" y="105" fill="#ffffff" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="700" text-anchor="middle">LEAKS DETECTED (3)</text>
+
+  <!-- KPI Cards -->
+  <g transform="translate(50, 130)">
+    <!-- Card 1 -->
+    <rect x="0" y="0" width="200" height="75" rx="8" fill="url(#cardGrad)" stroke="#30363d" stroke-width="1" />
+    <text x="16" y="26" fill="#8b949e" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" font-weight="600" letter-spacing="0.5">TOTAL LEAKED</text>
+    <text x="16" y="56" fill="#f85149" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="20" font-weight="700">7.91 MB</text>
+
+    <!-- Card 2 -->
+    <rect x="220" y="0" width="200" height="75" rx="8" fill="url(#cardGrad)" stroke="#30363d" stroke-width="1" />
+    <text x="236" y="26" fill="#8b949e" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" font-weight="600" letter-spacing="0.5">ACTIVE LEAKS</text>
+    <text x="236" y="56" fill="#f85149" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="20" font-weight="700">3 Blocks</text>
+
+    <!-- Card 3 -->
+    <rect x="440" y="0" width="200" height="75" rx="8" fill="url(#cardGrad)" stroke="#30363d" stroke-width="1" />
+    <text x="456" y="26" fill="#8b949e" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" font-weight="600" letter-spacing="0.5">PEAK HEAP</text>
+    <text x="456" y="56" fill="#f0f6fc" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="20" font-weight="700">7.91 MB</text>
+
+    <!-- Card 4 -->
+    <rect x="660" y="0" width="200" height="75" rx="8" fill="url(#cardGrad)" stroke="#30363d" stroke-width="1" />
+    <text x="676" y="26" fill="#8b949e" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" font-weight="600" letter-spacing="0.5">LIFETIME ALLOCS</text>
+    <text x="676" y="56" fill="#f0f6fc" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="20" font-weight="700">4 (7.91 MB)</text>
+
+    <!-- Card 5 -->
+    <rect x="880" y="0" width="215" height="75" rx="8" fill="url(#cardGrad)" stroke="#30363d" stroke-width="1" />
+    <text x="896" y="26" fill="#8b949e" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" font-weight="600" letter-spacing="0.5">LIFETIME FREES</text>
+    <text x="896" y="56" fill="#2ea043" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="20" font-weight="700">1 (4 B)</text>
+  </g>
+
+  <!-- Allocation Size Distribution Section -->
+  <g transform="translate(50, 225)">
+    <rect x="0" y="0" width="1095" height="130" rx="8" fill="url(#cardGrad)" stroke="#30363d" stroke-width="1" />
+    <text x="20" y="26" fill="#f0f6fc" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="14" font-weight="600">Allocation Size Distribution</text>
+    
+    <!-- Bar 1 -->
+    <text x="20" y="56" fill="#8b949e" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="12">[1 - 16 B]</text>
+    <rect x="120" y="44" width="780" height="14" rx="4" fill="#21262d" />
+    <rect x="120" y="44" width="260" height="14" rx="4" fill="url(#barGrad1)" />
+    <text x="920" y="56" fill="#c9d1d9" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="12">1 (16 B)</text>
+
+    <!-- Bar 2 -->
+    <text x="20" y="81" fill="#8b949e" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="12">[257 B - 1 KB]</text>
+    <rect x="120" y="69" width="780" height="14" rx="4" fill="#21262d" />
+    <rect x="120" y="69" width="260" height="14" rx="4" fill="url(#barGrad1)" />
+    <text x="920" y="81" fill="#c9d1d9" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="12">1 (1.00 KB)</text>
+
+    <!-- Bar 3 -->
+    <text x="20" y="106" fill="#8b949e" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="12">[> 1 MB]</text>
+    <rect x="120" y="94" width="780" height="14" rx="4" fill="#21262d" />
+    <rect x="120" y="94" width="260" height="14" rx="4" fill="url(#barGrad3)" />
+    <text x="920" y="106" fill="#c9d1d9" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="12">1 (7.91 MB)</text>
+  </g>
+
+  <!-- Leaks Table & Expandable Stacktrace -->
+  <g transform="translate(50, 375)">
+    <rect x="0" y="0" width="1095" height="260" rx="8" fill="url(#cardGrad)" stroke="#30363d" stroke-width="1" />
+    
+    <!-- Table Header Bar -->
+    <rect x="0" y="0" width="1095" height="34" rx="8" fill="#21262d" />
+    <text x="20" y="22" fill="#8b949e" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="12" font-weight="600">ID</text>
+    <text x="80" y="22" fill="#8b949e" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="12" font-weight="600">ADDRESS</text>
+    <text x="250" y="22" fill="#8b949e" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="12" font-weight="600">SIZE</text>
+    <text x="370" y="22" fill="#8b949e" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="12" font-weight="600">TAG</text>
+    <text x="510" y="22" fill="#8b949e" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="12" font-weight="600">THREAD</text>
+    <text x="630" y="22" fill="#8b949e" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="12" font-weight="600">CALLSTACK FRAMES</text>
+
+    <!-- Row 1 (Expanded) -->
+    <rect x="0" y="34" width="1095" height="36" fill="#1c2128" />
+    <text x="20" y="57" fill="#f0f6fc" font-family="ui-monospace, SFMono-Regular, Consolas, monospace" font-size="12">#3</text>
+    <text x="80" y="57" fill="#58a6ff" font-family="ui-monospace, SFMono-Regular, Consolas, monospace" font-size="12">0x284225f8080</text>
+    <text x="250" y="57" fill="#f85149" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="12" font-weight="700">8,294,400 B (7.91 MB)</text>
+    <rect x="370" y="43" width="70" height="20" rx="6" fill="#388bfd26" />
+    <text x="405" y="57" fill="#58a6ff" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" text-anchor="middle">General</text>
+    <text x="510" y="57" fill="#8b949e" font-family="ui-monospace, SFMono-Regular, Consolas, monospace" font-size="12">42224</text>
+    <text x="630" y="57" fill="#7ee787" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="12">▼ 5 frames (Expanded)</text>
+
+    <!-- Stacktrace Frame Box -->
+    <rect x="15" y="72" width="1065" height="100" rx="6" fill="#0d1117" stroke="#30363d" stroke-width="1" />
+    <text x="35" y="93" fill="#8b949e" font-family="ui-monospace, SFMono-Regular, Consolas, monospace" font-size="12">#0  <tspan fill="#f0f6fc">operator new[](unsigned __int64)</tspan> <tspan fill="#7ee787">at src/allocator_hooks.cpp:12</tspan></text>
+    <text x="35" y="113" fill="#8b949e" font-family="ui-monospace, SFMono-Regular, Consolas, monospace" font-size="12">#1  <tspan fill="#f0f6fc">TextureResource::TextureResource()</tspan> <tspan fill="#7ee787">at examples/01_basic_leak.cpp:11</tspan></text>
+    <text x="35" y="133" fill="#8b949e" font-family="ui-monospace, SFMono-Regular, Consolas, monospace" font-size="12">#2  <tspan fill="#f0f6fc">simulate_leak()</tspan> <tspan fill="#7ee787">at examples/01_basic_leak.cpp:19</tspan></text>
+    <text x="35" y="153" fill="#8b949e" font-family="ui-monospace, SFMono-Regular, Consolas, monospace" font-size="12">#3  <tspan fill="#f0f6fc">main()</tspan> <tspan fill="#7ee787">at examples/01_basic_leak.cpp:30</tspan></text>
+
+    <!-- Row 2 -->
+    <rect x="0" y="174" width="1095" height="34" fill="#161b22" />
+    <text x="20" y="196" fill="#f0f6fc" font-family="ui-monospace, SFMono-Regular, Consolas, monospace" font-size="12">#4</text>
+    <text x="80" y="196" fill="#58a6ff" font-family="ui-monospace, SFMono-Regular, Consolas, monospace" font-size="12">0x28422557e60</text>
+    <text x="250" y="196" fill="#f85149" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="12" font-weight="700">1,024 B (1.00 KB)</text>
+    <rect x="370" y="181" width="70" height="20" rx="6" fill="#388bfd26" />
+    <text x="405" y="195" fill="#58a6ff" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" text-anchor="middle">General</text>
+    <text x="510" y="196" fill="#8b949e" font-family="ui-monospace, SFMono-Regular, Consolas, monospace" font-size="12">42224</text>
+    <text x="630" y="196" fill="#8b949e" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="12">▶ 5 frames (click to expand)</text>
+
+    <!-- Row 3 -->
+    <rect x="0" y="208" width="1095" height="34" fill="#0d1117" />
+    <text x="20" y="230" fill="#f0f6fc" font-family="ui-monospace, SFMono-Regular, Consolas, monospace" font-size="12">#2</text>
+    <text x="80" y="230" fill="#58a6ff" font-family="ui-monospace, SFMono-Regular, Consolas, monospace" font-size="12">0x284224e46c0</text>
+    <text x="250" y="230" fill="#f85149" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="12" font-weight="700">16 B</text>
+    <rect x="370" y="215" width="70" height="20" rx="6" fill="#388bfd26" />
+    <text x="405" y="229" fill="#58a6ff" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" text-anchor="middle">General</text>
+    <text x="510" y="230" fill="#8b949e" font-family="ui-monospace, SFMono-Regular, Consolas, monospace" font-size="12">42224</text>
+    <text x="630" y="230" fill="#8b949e" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="12">▶ 5 frames (click to expand)</text>
+  </g>
+</svg>
