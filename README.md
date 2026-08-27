@@ -1,10 +1,10 @@
 # MemSentry
 
 [![C++20](https://img.shields.io/badge/C%2B%2B-20-blue.svg?style=flat-square&logo=c%2B%2B)](https://en.cppreference.com/w/cpp/20)
-[![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey.svg?style=flat-square)](https://github.com/)
-[![License](https://img.shields.io/badge/License-MIT-green.svg?style=flat-square)](LICENSE)
-[![Build Status](https://img.shields.io/badge/Build-Passing-brightgreen.svg?style=flat-square)](#building)
-[![Zero-Dependency](https://img.shields.io/badge/Dependencies-Header%20%26%20Static%20Lib-orange.svg?style=flat-square)](#)
+[![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey.svg?style=flat-square)](https://github.com/latryee/MemSentry)
+[![License](https://img.shields.io/badge/License-MIT-green.svg?style=flat-square)](https://github.com/latryee/MemSentry/blob/main/LICENSE)
+[![Build Status](https://img.shields.io/badge/Build-Passing-brightgreen.svg?style=flat-square)](https://github.com/latryee/MemSentry)
+[![Zero-Dependency](https://img.shields.io/badge/Dependencies-Header%20%26%20Static%20Lib-orange.svg?style=flat-square)](https://github.com/latryee/MemSentry)
 
 A high-performance, cross-platform Memory Leak Detector and Heap Profiling engine for modern C++ applications. Built with low-overhead sharded concurrency, red-zone canary memory corruption detection, automated backtrace symbol resolution, snapshot diffing, subsystem memory tagging, and multi-format report exports (ANSI Terminal, JSON, and standalone dark-mode HTML dashboards).
 
