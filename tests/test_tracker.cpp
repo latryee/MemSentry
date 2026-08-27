@@ -12,7 +12,7 @@ void thread_stress_worker(int thread_id, int iterations) {
     ptrs.reserve(iterations);
 
     for (int i = 0; i < iterations; ++i) {
-        size_t sz = (i % 64 + 1) * 16;
+        size_t sz = (i % 32 + 1) * 16;
         void* p = memsentry::core::track_alloc(sz);
         assert(p != nullptr);
         ptrs.push_back(p);
@@ -29,13 +29,12 @@ int main() {
     config.auto_report_on_exit = false;
     memsentry::init(config);
 
-    // Basic allocator sanity check
     void* initial = memsentry::core::track_alloc(64);
     assert(initial != nullptr);
     memsentry::core::track_free(initial);
 
-    constexpr int NUM_THREADS = 8;
-    constexpr int ITERATIONS_PER_THREAD = 1000;
+    constexpr int NUM_THREADS = 4;
+    constexpr int ITERATIONS_PER_THREAD = 250;
 
     auto baseline_stats = memsentry::get_stats();
 

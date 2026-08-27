@@ -2,7 +2,13 @@
 
 namespace memsentry::profiler {
 
+#if defined(_MSC_VER)
+inline __declspec(thread) const char* g_active_tag = nullptr;
+#elif defined(__GNUC__) || defined(__clang__)
+inline __thread const char* g_active_tag = nullptr;
+#else
 inline thread_local const char* g_active_tag = nullptr;
+#endif
 
 class ScopedTag {
 public:

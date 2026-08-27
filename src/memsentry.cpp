@@ -56,7 +56,7 @@ public:
     }
 
     void* allocate(size_t size, size_t alignment, const char* tag) noexcept {
-        if (core::RecursionGuard::active || !initialized_.load(std::memory_order_relaxed)) {
+        if (core::RecursionGuard::is_active() || !initialized_.load(std::memory_order_relaxed)) {
             return std::malloc(size);
         }
 
@@ -99,7 +99,7 @@ public:
     void deallocate(void* user_ptr) noexcept {
         if (!user_ptr) return;
 
-        if (core::RecursionGuard::active || !initialized_.load(std::memory_order_relaxed)) {
+        if (core::RecursionGuard::is_active() || !initialized_.load(std::memory_order_relaxed)) {
             std::free(user_ptr);
             return;
         }
@@ -129,7 +129,7 @@ public:
             return nullptr;
         }
 
-        if (core::RecursionGuard::active || !initialized_.load(std::memory_order_relaxed)) {
+        if (core::RecursionGuard::is_active() || !initialized_.load(std::memory_order_relaxed)) {
             return std::realloc(ptr, new_size);
         }
 
@@ -212,9 +212,7 @@ private:
 #elif defined(__linux__) && defined(SYS_gettid)
         return static_cast<uint32_t>(syscall(SYS_gettid));
 #elif defined(__APPLE__)
-        uint64_t tid = 0;
-        pthread_threadid_np(nullptr, &tid);
-        return static_cast<uint32_t>(tid);
+        return static_cast<uint32_t>(reinterpret_cast<uintptr_t>(pthread_self()));
 #else
         return static_cast<uint32_t>(std::hash<std::thread::id>{}(std::this_thread::get_id()));
 #endif
