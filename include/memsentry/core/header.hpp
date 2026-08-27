@@ -8,7 +8,7 @@
 
 namespace memsentry::core {
 
-struct alignas(16) BlockHeader {
+struct BlockHeader {
     uint64_t magic;
     uint64_t allocation_id;
     size_t requested_size;

@@ -1,5 +1,4 @@
 #include "memsentry/core/header.hpp"
-#include <vector>
 #include <iostream>
 
 int main() {
@@ -9,13 +8,12 @@ int main() {
     constexpr size_t ALIGN = 16;
     constexpr size_t FOOTER_SIZE = 16;
 
-    size_t total_size = calculate_total_size(REQ_SIZE, ALIGN, FOOTER_SIZE);
-    std::vector<uint8_t> memory(total_size, 0);
+    alignas(16) uint8_t memory[512] = {0};
 
-    void* user_ptr = init_block(memory.data(), REQ_SIZE, ALIGN, FOOTER_SIZE, 1, "UnitTest", true);
+    void* user_ptr = init_block(memory, REQ_SIZE, ALIGN, FOOTER_SIZE, 1, "UnitTest", true);
     if (!user_ptr) return 1;
 
-    auto* header = get_header_from_raw_ptr(memory.data());
+    auto* header = get_header_from_raw_ptr(memory);
     if (!header || header->magic != memsentry::CANARY_HEADER_MAGIC || header->requested_size != REQ_SIZE) {
         return 1;
     }
