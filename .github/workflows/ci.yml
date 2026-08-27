@@ -1,0 +1,45 @@
+name: MemSentry CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build-and-test:
+    name: ${{ matrix.os }} - ${{ matrix.compiler }} (${{ matrix.build_type }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        build_type: [Release, Debug]
+        include:
+          - os: ubuntu-latest
+            compiler: gcc
+          - os: windows-latest
+            compiler: msvc
+          - os: macos-latest
+            compiler: clang
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up CMake
+        uses: jwlawson/actions-setup-cmake@v2
+        with:
+          cmake-version: '3.28.x'
+
+      - name: Configure CMake
+        run: |
+          cmake -B build -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DMEMSENTRY_BUILD_TESTS=ON -DMEMSENTRY_BUILD_EXAMPLES=ON
+
+      - name: Build MemSentry
+        run: |
+          cmake --build build --config ${{ matrix.build_type }} --parallel
+
+      - name: Run Unit Tests
+        run: |
+          ctest --test-dir build -C ${{ matrix.build_type }} --output-on-failure --verbose
