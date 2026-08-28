@@ -2,27 +2,28 @@
 
 namespace memsentry::core {
 
+#if defined(_MSC_VER)
+inline __declspec(thread) int g_recursion_depth = 0;
+#else
+inline thread_local int g_recursion_depth = 0;
+#endif
+
 class RecursionGuard {
 public:
     RecursionGuard() noexcept {
-        prev_ = active_;
-        active_ = true;
+        ++g_recursion_depth;
     }
 
     ~RecursionGuard() noexcept {
-        active_ = prev_;
+        --g_recursion_depth;
     }
 
     RecursionGuard(const RecursionGuard&) = delete;
     RecursionGuard& operator=(const RecursionGuard&) = delete;
 
     [[nodiscard]] static bool is_active() noexcept {
-        return active_;
+        return g_recursion_depth > 0;
     }
-
-private:
-    static inline thread_local bool active_ = false;
-    bool prev_{false};
 };
 
 }

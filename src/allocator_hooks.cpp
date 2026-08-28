@@ -93,3 +93,25 @@ void operator delete(void* ptr, std::size_t, std::align_val_t) noexcept {
 void operator delete[](void* ptr, std::size_t, std::align_val_t) noexcept {
     memsentry::core::track_free(ptr);
 }
+
+#if defined(_MSC_VER)
+void* operator new(std::size_t size, int, const char*, int) {
+    void* ptr = memsentry::core::track_alloc(size);
+    if (!ptr) throw std::bad_alloc();
+    return ptr;
+}
+
+void* operator new[](std::size_t size, int, const char*, int) {
+    void* ptr = memsentry::core::track_alloc(size);
+    if (!ptr) throw std::bad_alloc();
+    return ptr;
+}
+
+void operator delete(void* ptr, int, const char*, int) noexcept {
+    memsentry::core::track_free(ptr);
+}
+
+void operator delete[](void* ptr, int, const char*, int) noexcept {
+    memsentry::core::track_free(ptr);
+}
+#endif

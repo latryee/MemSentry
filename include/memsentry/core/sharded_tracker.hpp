@@ -89,6 +89,7 @@ public:
     }
 
     void clear() noexcept {
+        RecursionGuard guard;
         for (size_t i = 0; i < SHARD_COUNT; ++i) {
             std::lock_guard<std::mutex> lock(shards_[i].mtx);
             shards_[i].records.clear();

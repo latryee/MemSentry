@@ -262,26 +262,25 @@ private:
     core::ShardedTracker tracker_;
 };
 
-Manager& Manager::instance() noexcept {
-    alignas(64) static uint8_t storage[sizeof(Manager)];
-    static std::atomic<bool> initialized{false};
-    // Use atomic_flag spinlock instead of std::mutex to avoid heap allocations
-    // during lock construction. MSVC Debug's std::mutex ctor can trigger operator new,
-    // causing infinite re-entry through overridden operator new -> track_alloc -> instance().
-    static std::atomic_flag init_lock = ATOMIC_FLAG_INIT;
+namespace {
+alignas(64) uint8_t g_manager_storage[sizeof(Manager)];
+std::atomic<bool> g_manager_constructed{false};
+std::atomic_flag g_manager_init_lock = ATOMIC_FLAG_INIT;
+}
 
-    if (!initialized.load(std::memory_order_acquire)) {
-        while (init_lock.test_and_set(std::memory_order_acquire)) {
+Manager& Manager::instance() noexcept {
+    if (!g_manager_constructed.load(std::memory_order_acquire)) {
+        while (g_manager_init_lock.test_and_set(std::memory_order_acquire)) {
             std::this_thread::yield();
         }
-        if (!initialized.load(std::memory_order_relaxed)) {
+        if (!g_manager_constructed.load(std::memory_order_relaxed)) {
             core::RecursionGuard guard;
-            new (storage) Manager();
-            initialized.store(true, std::memory_order_release);
+            new (g_manager_storage) Manager();
+            g_manager_constructed.store(true, std::memory_order_release);
         }
-        init_lock.clear(std::memory_order_release);
+        g_manager_init_lock.clear(std::memory_order_release);
     }
-    return *reinterpret_cast<Manager*>(storage);
+    return *reinterpret_cast<Manager*>(g_manager_storage);
 }
 
 void init(const Config& config) {

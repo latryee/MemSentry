@@ -28,23 +28,25 @@ namespace memsentry::stacktrace {
 static std::mutex g_symbol_mutex;
 static std::unordered_map<uintptr_t, StackFrame> g_symbol_cache;
 
-StackTraceProvider& StackTraceProvider::instance() noexcept {
-    alignas(64) static uint8_t storage[sizeof(StackTraceProvider)];
-    static std::atomic<bool> initialized{false};
-    static std::atomic_flag init_lock = ATOMIC_FLAG_INIT;
+namespace {
+alignas(64) uint8_t g_provider_storage[sizeof(StackTraceProvider)];
+std::atomic<bool> g_provider_constructed{false};
+std::atomic_flag g_provider_init_lock = ATOMIC_FLAG_INIT;
+}
 
-    if (!initialized.load(std::memory_order_acquire)) {
-        while (init_lock.test_and_set(std::memory_order_acquire)) {
+StackTraceProvider& StackTraceProvider::instance() noexcept {
+    if (!g_provider_constructed.load(std::memory_order_acquire)) {
+        while (g_provider_init_lock.test_and_set(std::memory_order_acquire)) {
             // spin-wait
         }
-        if (!initialized.load(std::memory_order_relaxed)) {
+        if (!g_provider_constructed.load(std::memory_order_relaxed)) {
             core::RecursionGuard guard;
-            new (storage) StackTraceProvider();
-            initialized.store(true, std::memory_order_release);
+            new (g_provider_storage) StackTraceProvider();
+            g_provider_constructed.store(true, std::memory_order_release);
         }
-        init_lock.clear(std::memory_order_release);
+        g_provider_init_lock.clear(std::memory_order_release);
     }
-    return *reinterpret_cast<StackTraceProvider*>(storage);
+    return *reinterpret_cast<StackTraceProvider*>(g_provider_storage);
 }
 
 StackTraceProvider::StackTraceProvider() = default;

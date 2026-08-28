@@ -2,25 +2,30 @@
 
 namespace memsentry::profiler {
 
+#if defined(_MSC_VER)
+inline __declspec(thread) const char* g_active_scope_tag = nullptr;
+#else
+inline thread_local const char* g_active_scope_tag = nullptr;
+#endif
+
 class ScopedTag {
 public:
-    explicit ScopedTag(const char* tag) noexcept : prev_(active_tag_) {
-        active_tag_ = tag;
+    explicit ScopedTag(const char* tag) noexcept : prev_(g_active_scope_tag) {
+        g_active_scope_tag = tag;
     }
 
     ~ScopedTag() noexcept {
-        active_tag_ = prev_;
+        g_active_scope_tag = prev_;
     }
 
     ScopedTag(const ScopedTag&) = delete;
     ScopedTag& operator=(const ScopedTag&) = delete;
 
     [[nodiscard]] static const char* current() noexcept {
-        return active_tag_ ? active_tag_ : "General";
+        return g_active_scope_tag ? g_active_scope_tag : "General";
     }
 
 private:
-    static inline thread_local const char* active_tag_ = nullptr;
     const char* prev_{nullptr};
 };
 
