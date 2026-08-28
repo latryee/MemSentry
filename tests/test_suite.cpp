@@ -75,12 +75,13 @@ void test_array_alloc_free() {
 }
 
 void test_nothrow_alloc() {
-    int* p = new (std::nothrow) int(99);
+    void* raw = ::operator new(sizeof(int), std::nothrow);
+    TEST_ASSERT(raw != nullptr, "nothrow alloc succeeded");
+    int* p = new (raw) int(99);
     do_not_optimize(p);
-    TEST_ASSERT(p != nullptr, "nothrow alloc succeeded");
     TEST_ASSERT(*p == 99, "nothrow value preserved");
     do_not_optimize(p);
-    ::operator delete(p, std::nothrow);
+    ::operator delete(raw, std::nothrow);
 }
 
 struct alignas(64) AlignedBlock {
@@ -88,13 +89,16 @@ struct alignas(64) AlignedBlock {
 };
 
 void test_aligned_alloc() {
-    auto* ptr = new (std::align_val_t{64}) AlignedBlock();
+    void* raw_mem = ::operator new(sizeof(AlignedBlock), std::align_val_t{64});
+    TEST_ASSERT(raw_mem != nullptr, "aligned alloc succeeded");
+    auto* ptr = new (raw_mem) AlignedBlock();
     do_not_optimize(ptr);
     uintptr_t addr = reinterpret_cast<uintptr_t>(ptr);
     TEST_ASSERT((addr % 64) == 0, "pointer address must satisfy 64-byte alignment");
 
     do_not_optimize(ptr);
-    ::operator delete(ptr, std::align_val_t{64});
+    ptr->~AlignedBlock();
+    ::operator delete(raw_mem, std::align_val_t{64});
 }
 
 void test_scoped_tagging() {
