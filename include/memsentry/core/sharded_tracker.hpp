@@ -13,6 +13,12 @@ namespace memsentry::core {
 inline constexpr size_t SHARD_COUNT = 64;
 static_assert((SHARD_COUNT & (SHARD_COUNT - 1)) == 0, "SHARD_COUNT must be a power of 2");
 
+enum class TrackerEraseStatus : uint8_t {
+    SUCCESS = 0,
+    NOT_FOUND,
+    DOUBLE_FREE_DETECTED
+};
+
 class ShardedTracker {
 public:
     ShardedTracker() = default;
@@ -28,8 +34,8 @@ public:
         shards_[idx].records[user_ptr] = std::move(record);
     }
 
-    bool erase(const void* user_ptr, AllocationRecord* out_record = nullptr) {
-        if (!user_ptr) return false;
+    TrackerEraseStatus erase(const void* user_ptr, AllocationRecord* out_record = nullptr) {
+        if (!user_ptr) return TrackerEraseStatus::NOT_FOUND;
         size_t idx = get_shard_index(user_ptr);
         std::lock_guard<std::mutex> lock(shards_[idx].mtx);
         auto it = shards_[idx].records.find(user_ptr);
@@ -38,9 +44,17 @@ public:
                 *out_record = std::move(it->second);
             }
             shards_[idx].records.erase(it);
-            return true;
+            shards_[idx].quarantine[shards_[idx].quarantine_head % shards_[idx].quarantine.size()] = user_ptr;
+            shards_[idx].quarantine_head++;
+            return TrackerEraseStatus::SUCCESS;
         }
-        return false;
+
+        for (const void* q_ptr : shards_[idx].quarantine) {
+            if (q_ptr == user_ptr) {
+                return TrackerEraseStatus::DOUBLE_FREE_DETECTED;
+            }
+        }
+        return TrackerEraseStatus::NOT_FOUND;
     }
 
     bool find(const void* user_ptr, AllocationRecord* out_record = nullptr) const {
@@ -85,6 +99,8 @@ public:
         for (size_t i = 0; i < SHARD_COUNT; ++i) {
             std::lock_guard<std::mutex> lock(shards_[i].mtx);
             shards_[i].records.clear();
+            shards_[i].quarantine.fill(nullptr);
+            shards_[i].quarantine_head = 0;
         }
     }
 
@@ -92,6 +108,8 @@ private:
     struct alignas(64) Shard {
         mutable std::mutex mtx;
         std::unordered_map<const void*, AllocationRecord> records;
+        std::array<const void*, 256> quarantine{};
+        size_t quarantine_head{0};
     };
 
     static inline size_t get_shard_index(const void* ptr) noexcept {
