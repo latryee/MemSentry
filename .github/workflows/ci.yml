@@ -34,8 +34,22 @@ jobs:
           -DMEMSENTRY_BUILD_TESTS=ON
           -DMEMSENTRY_BUILD_EXAMPLES=ON
 
-      - name: Build MemSentry
+      - name: Build MemSentry (Linux/macOS)
+        if: runner.os != 'Windows'
         run: cmake --build build --config ${{ matrix.build_type }} --parallel
+
+      - name: Build MemSentry (Windows)
+        if: runner.os == 'Windows'
+        shell: cmd
+        run: |
+          cmake --build build --config ${{ matrix.build_type }} -- -fl -flp:logfile=build.log
+          if errorlevel 1 (
+            echo ## Windows Build Failure > "%GITHUB_STEP_SUMMARY%"
+            echo ``` >> "%GITHUB_STEP_SUMMARY%"
+            type build.log >> "%GITHUB_STEP_SUMMARY%"
+            echo ``` >> "%GITHUB_STEP_SUMMARY%"
+            exit /b 1
+          )
 
       - name: Run Tests
         run: ctest --test-dir build -C ${{ matrix.build_type }} --output-on-failure --verbose
