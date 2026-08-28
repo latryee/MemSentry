@@ -15,11 +15,7 @@ namespace memsentry::core {
 inline constexpr size_t SHARD_COUNT = 64;
 static_assert((SHARD_COUNT & (SHARD_COUNT - 1)) == 0, "SHARD_COUNT must be a power of 2");
 
-enum class TrackerEraseStatus : uint8_t {
-    SUCCESS = 0,
-    NOT_FOUND,
-    DOUBLE_FREE_DETECTED
-};
+enum class TrackerEraseStatus : uint8_t { SUCCESS = 0, NOT_FOUND, DOUBLE_FREE_DETECTED };
 
 class ShardedTracker {
 public:

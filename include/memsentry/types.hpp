@@ -8,20 +8,24 @@
 #include <string>
 #include <vector>
 
+#if defined(__clang__) || defined(__GNUC__)
+#define MEMSENTRY_NO_SANITIZE __attribute__((no_sanitize("address", "thread", "undefined")))
+#elif defined(_MSC_VER)
+#define MEMSENTRY_NO_SANITIZE __declspec(no_sanitize_address)
+#else
+#define MEMSENTRY_NO_SANITIZE
+#endif
+
 namespace memsentry {
 
 // 64-bit cryptographic magic constants for red-zone bounds validation
 inline constexpr uint64_t CANARY_HEADER_MAGIC = 0xDEADBEEFCAFEBABEULL;
 inline constexpr uint64_t CANARY_FOOTER_MAGIC = 0xBAADF00D5EADC0DEULL;
-inline constexpr uint64_t CANARY_FREED_MAGIC  = 0xDEADDEADDEADDEADULL;
+inline constexpr uint64_t CANARY_FREED_MAGIC = 0xDEADDEADDEADDEADULL;
 inline constexpr size_t DEFAULT_ALIGNMENT = 16;
 inline constexpr size_t AVX512_ALIGNMENT = 64;
 
-enum class ReportFormat : uint8_t {
-    CONSOLE_ANSI = 0,
-    JSON,
-    HTML
-};
+enum class ReportFormat : uint8_t { CONSOLE_ANSI = 0, JSON, HTML };
 
 enum class CorruptionType : uint8_t {
     NONE = 0,
@@ -92,13 +96,15 @@ struct MemoryStatsSnapshot {
     uint64_t active_allocation_count = 0;
 
     static MemoryStatsSnapshot from(const MemoryStats& stats) noexcept {
-        return {stats.total_allocated_bytes.load(std::memory_order_relaxed),
-                stats.total_freed_bytes.load(std::memory_order_relaxed),
-                stats.current_allocated_bytes.load(std::memory_order_relaxed),
-                stats.peak_allocated_bytes.load(std::memory_order_relaxed),
-                stats.total_allocation_count.load(std::memory_order_relaxed),
-                stats.total_free_count.load(std::memory_order_relaxed),
-                stats.active_allocation_count.load(std::memory_order_relaxed)};
+        return {
+            stats.total_allocated_bytes.load(std::memory_order_relaxed),
+            stats.total_freed_bytes.load(std::memory_order_relaxed),
+            stats.current_allocated_bytes.load(std::memory_order_relaxed),
+            stats.peak_allocated_bytes.load(std::memory_order_relaxed),
+            stats.total_allocation_count.load(std::memory_order_relaxed),
+            stats.total_free_count.load(std::memory_order_relaxed),
+            stats.active_allocation_count.load(std::memory_order_relaxed),
+        };
     }
 };
 

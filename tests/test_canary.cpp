@@ -1,20 +1,11 @@
 #include "memsentry/core/header.hpp"
+#include "memsentry/core/msvc_debug_guard.hpp"
 
 #include <cstddef>
 #include <cstdint>
 #include <iostream>
-#if defined(_MSC_VER) && defined(_DEBUG)
-#include <crtdbg.h>
-#include <cstdlib>
-#endif
 
-int main() {
-#if defined(_MSC_VER) && defined(_DEBUG)
-    _CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_DEBUG);
-    _CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_DEBUG);
-    _CrtSetReportMode(_CRT_ASSERT, _CRTDBG_MODE_DEBUG);
-    _set_abort_behavior(0, _WRITE_ABORT_MSG | _CALL_REPORTFAULT);
-#endif
+MEMSENTRY_NO_SANITIZE int main() {
     using namespace memsentry::core;
 
     constexpr size_t REQ_SIZE = 64;

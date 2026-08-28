@@ -20,8 +20,6 @@ struct ScenarioResult {
     bool ubsan_equivalent;
 };
 
-
-
 template <typename T> inline void do_not_optimize(T const& value) {
 #if defined(_MSC_VER)
     auto volatile dummy = *reinterpret_cast<const volatile char*>(&value);
@@ -32,7 +30,7 @@ template <typename T> inline void do_not_optimize(T const& value) {
 }
 
 // 1. Buffer Overflow (Canary Overrun)
-ScenarioResult test_scenario_buffer_overflow() {
+MEMSENTRY_NO_SANITIZE ScenarioResult test_scenario_buffer_overflow() {
     constexpr size_t SIZE = 64;
     alignas(16) uint8_t raw_mem[256] = {0};
     void* user_ptr = memsentry::core::init_block(raw_mem, SIZE, 16, 16, 101, "OverflowTest", true);
@@ -56,7 +54,7 @@ ScenarioResult test_scenario_buffer_overflow() {
 }
 
 // 2. Buffer Underrun (Header Magic Corruption)
-ScenarioResult test_scenario_buffer_underrun() {
+MEMSENTRY_NO_SANITIZE ScenarioResult test_scenario_buffer_underrun() {
     constexpr size_t SIZE = 128;
     alignas(16) uint8_t raw_mem[512] = {0};
     void* user_ptr = memsentry::core::init_block(raw_mem, SIZE, 16, 16, 102, "UnderrunTest", true);
@@ -80,7 +78,7 @@ ScenarioResult test_scenario_buffer_underrun() {
 }
 
 // 3. Double-Free / Untracked Pointer
-ScenarioResult test_scenario_double_free() {
+MEMSENTRY_NO_SANITIZE ScenarioResult test_scenario_double_free() {
     memsentry::Config config;
     config.enable_stacktrace = false;
     config.enable_canary = true;
@@ -107,7 +105,7 @@ ScenarioResult test_scenario_double_free() {
 }
 
 // 4. Intentional Memory Leak Detection
-ScenarioResult test_scenario_intentional_leak() {
+MEMSENTRY_NO_SANITIZE ScenarioResult test_scenario_intentional_leak() {
     memsentry::Config config;
     config.enable_stacktrace = true;
     config.enable_canary = true;

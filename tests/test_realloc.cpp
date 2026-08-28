@@ -1,4 +1,5 @@
 #include "memsentry/core/allocator_hooks.hpp"
+#include "memsentry/core/msvc_debug_guard.hpp"
 #include "memsentry/memsentry.hpp"
 
 #include <cassert>
@@ -101,7 +102,7 @@ void test_realloc_edge_cases() {
     TEST_ASSERT(after_free.active_allocation_count == base_stats.active_allocation_count, "Alloc count restored");
 }
 
-void test_realloc_canary_check() {
+MEMSENTRY_NO_SANITIZE void test_realloc_canary_check() {
     void* p = memsentry_malloc(64);
     TEST_ASSERT(p != nullptr, "Allocated 64 bytes");
 

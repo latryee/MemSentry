@@ -1,18 +1,12 @@
 #include "memsentry/core/allocator_hooks.hpp"
+#include "memsentry/core/msvc_debug_guard.hpp"
 #include "memsentry/core/recursion_guard.hpp"
 #include "memsentry/memsentry.hpp"
 
 #include <cstddef>
 #include <iostream>
-#include <vector>
-
-#if defined(_WIN32)
-#define WIN32_LEAN_AND_MEAN
-#define NOMINMAX
-#include <windows.h>
-#else
 #include <thread>
-#endif
+#include <vector>
 
 template <typename T> inline void do_not_optimize(T const& value) {
 #if defined(_MSC_VER)
@@ -23,7 +17,7 @@ template <typename T> inline void do_not_optimize(T const& value) {
 #endif
 }
 
-void thread_stress_worker(int thread_id, int iterations) {
+MEMSENTRY_NO_SANITIZE void thread_stress_worker(int thread_id, int iterations) {
     (void)thread_id;
     MEMSENTRY_SCOPE_TAG("StressWorker");
     std::vector<void*> ptrs;
@@ -45,20 +39,7 @@ void thread_stress_worker(int thread_id, int iterations) {
     }
 }
 
-#if defined(_WIN32)
-struct WorkerArg {
-    int thread_id;
-    int iterations;
-};
-
-static DWORD WINAPI Win32StressWorker(LPVOID lpParam) {
-    auto* arg = static_cast<WorkerArg*>(lpParam);
-    thread_stress_worker(arg->thread_id, arg->iterations);
-    return 0;
-}
-#endif
-
-int main() {
+MEMSENTRY_NO_SANITIZE int main() {
     memsentry::Config config;
     config.enable_stacktrace = false;
     config.auto_report_on_exit = false;
@@ -74,25 +55,12 @@ int main() {
 
     auto baseline_stats = memsentry::get_stats();
 
-#if defined(_WIN32)
-    {
-        HANDLE handles[NUM_THREADS];
-        WorkerArg args[NUM_THREADS];
-        for (int i = 0; i < NUM_THREADS; ++i) {
-            args[i] = {i, ITERATIONS_PER_THREAD};
-            handles[i] = CreateThread(nullptr, 0, Win32StressWorker, &args[i], 0, nullptr);
-        }
-        WaitForMultipleObjects(NUM_THREADS, handles, TRUE, INFINITE);
-        for (int i = 0; i < NUM_THREADS; ++i) {
-            CloseHandle(handles[i]);
-        }
-    }
-#else
     {
         std::vector<std::thread> threads;
         threads.reserve(NUM_THREADS);
 
         for (int i = 0; i < NUM_THREADS; ++i) {
+            memsentry::core::RecursionGuard guard;
             threads.emplace_back(thread_stress_worker, i, ITERATIONS_PER_THREAD);
         }
 
@@ -100,7 +68,6 @@ int main() {
             t.join();
         }
     }
-#endif
 
     auto final_stats = memsentry::get_stats();
     if (final_stats.total_allocation_count <

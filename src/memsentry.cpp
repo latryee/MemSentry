@@ -241,8 +241,8 @@ public:
         const char* final_tag = tag ? tag : (active_tag ? active_tag : config_.default_tag);
 
         uint32_t tid = current_thread_id();
-        void* user_ptr = core::init_block(raw_ptr, size, eff_align, footer_size, alloc_id, final_tag,
-                                          config_.enable_canary, tid);
+        void* user_ptr =
+            core::init_block(raw_ptr, size, eff_align, footer_size, alloc_id, final_tag, config_.enable_canary, tid);
 
         AllocationRecord record;
         record.allocation_id = alloc_id;

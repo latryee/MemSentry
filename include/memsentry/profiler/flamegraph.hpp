@@ -123,9 +123,11 @@ public:
         ss << "<svg class=\"flamegraph-svg\" viewBox=\"0 0 " << width << " " << svg_height << "\" width=\"100%\" "
            << "xmlns=\"http://www.w3.org/2000/svg\">\n";
         ss << "<style>\n"
-           << "  .node rect { stroke: #0d1117; stroke-width: 1px; rx: 3px; cursor: pointer; transition: opacity 0.15s; }\n"
+           << "  .node rect { stroke: #0d1117; stroke-width: 1px; rx: 3px; cursor: pointer; transition: opacity 0.15s; "
+              "}\n"
            << "  .node rect:hover { stroke: #58a6ff; stroke-width: 2px; opacity: 0.9; }\n"
-           << "  .node text { fill: #ffffff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', monospace; font-size: 11px; pointer-events: none; }\n"
+           << "  .node text { fill: #ffffff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', monospace; "
+              "font-size: 11px; pointer-events: none; }\n"
            << "</style>\n";
 
         render_node_svg(ss, root.get(), 0.0, width, 0, max_depth, row_height, root->total_bytes);
@@ -154,7 +156,7 @@ private:
         for (char c : node->name) {
             hash = (hash ^ static_cast<uint8_t>(c)) * 0x01000193;
         }
-        int hue = 200 + (hash % 50);      // Cool blues / teals
+        int hue = 200 + (hash % 50);  // Cool blues / teals
         int sat = 60 + ((depth * 7) % 30);
         int light = 40 + ((depth * 5) % 25);
 

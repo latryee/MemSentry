@@ -272,56 +272,68 @@ std::string HtmlReporter::generate(const MemoryStatsSnapshot& stats, const std::
     ss << "header { margin-bottom: 24px; display: flex; align-items: center; justify-content: space-between; "
           "border-bottom: 1px solid #30363d; padding-bottom: 16px; }\n";
     ss << "h1 { font-size: 24px; color: #58a6ff; display: flex; align-items: center; gap: 8px; }\n";
-    ss << ".badge { padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }\n";
+    ss << ".badge { padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600; text-transform: "
+          "uppercase; letter-spacing: 0.5px; }\n";
     ss << ".badge-clean { background-color: #238636; color: #ffffff; }\n";
     ss << ".badge-leak { background-color: #da3633; color: #ffffff; }\n";
     ss << ".grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; "
           "margin-bottom: 24px; }\n";
-    ss << ".card { background-color: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }\n";
-    ss << ".card-title { font-size: 12px; color: #8b949e; text-transform: uppercase; margin-bottom: 6px; font-weight: 600; }\n";
+    ss << ".card { background-color: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 16px; "
+          "box-shadow: 0 2px 4px rgba(0,0,0,0.2); }\n";
+    ss << ".card-title { font-size: 12px; color: #8b949e; text-transform: uppercase; margin-bottom: 6px; font-weight: "
+          "600; }\n";
     ss << ".card-value { font-size: 22px; font-weight: 700; color: #f0f6fc; }\n";
     ss << ".section { background-color: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 20px; "
           "margin-bottom: 24px; }\n";
     ss << ".section h2 { font-size: 16px; color: #f0f6fc; margin-bottom: 16px; border-bottom: 1px solid #21262d; "
           "padding-bottom: 8px; display: flex; align-items: center; justify-content: space-between; }\n";
-    ss << ".flamegraph-container { width: 100%; overflow-x: auto; background-color: #0d1117; border-radius: 6px; padding: 12px; border: 1px solid #30363d; }\n";
+    ss << ".flamegraph-container { width: 100%; overflow-x: auto; background-color: #0d1117; border-radius: 6px; "
+          "padding: 12px; border: 1px solid #30363d; }\n";
     ss << ".histogram-bar { display: flex; align-items: center; margin-bottom: 8px; font-size: 13px; }\n";
     ss << ".histogram-label { width: 140px; color: #8b949e; }\n";
     ss << ".histogram-track { flex-grow: 1; background-color: #21262d; height: 16px; border-radius: 4px; overflow: "
           "hidden; margin: 0 12px; }\n";
-    ss << ".histogram-fill { height: 100%; background: linear-gradient(90deg, #1f6feb, #58a6ff); border-radius: 4px; }\n";
+    ss << ".histogram-fill { height: 100%; background: linear-gradient(90deg, #1f6feb, #58a6ff); border-radius: 4px; "
+          "}\n";
     ss << ".histogram-val { width: 100px; text-align: right; color: #c9d1d9; }\n";
     ss << "table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 13px; }\n";
     ss << "th { background-color: #21262d; color: #8b949e; text-align: left; padding: 10px 12px; border-bottom: 1px "
           "solid #30363d; font-weight: 600; }\n";
     ss << "td { padding: 10px 12px; border-bottom: 1px solid #21262d; }\n";
     ss << "tr:hover { background-color: #1c2128; cursor: pointer; }\n";
-    ss << ".tag-pill { background-color: #388bfd26; color: #58a6ff; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 500; }\n";
-    ss << ".stacktrace { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 12px; color: #8b949e; padding: 12px 16px; background-color: #0d1117; display: none; }\n";
+    ss << ".tag-pill { background-color: #388bfd26; color: #58a6ff; padding: 2px 8px; border-radius: 6px; font-size: "
+          "11px; font-weight: 500; }\n";
+    ss << ".stacktrace { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: "
+          "12px; color: #8b949e; padding: 12px 16px; background-color: #0d1117; display: none; }\n";
     ss << ".stack-line { margin: 4px 0; }\n";
     ss << ".stack-sym { color: #f0f6fc; font-weight: 500; }\n";
     ss << ".stack-loc { color: #7ee787; }\n";
-    ss << "input[type=\"text\"] { background-color: #0d1117; border: 1px solid #30363d; border-radius: 6px; color: #c9d1d9; padding: 8px 12px; width: 320px; margin-bottom: 12px; outline: none; }\n";
+    ss << "input[type=\"text\"] { background-color: #0d1117; border: 1px solid #30363d; border-radius: 6px; color: "
+          "#c9d1d9; padding: 8px 12px; width: 320px; margin-bottom: 12px; outline: none; }\n";
     ss << "input[type=\"text\"]:focus { border-color: #58a6ff; }\n";
     ss << "</style>\n</head>\n<body>\n";
 
     ss << "<header>\n";
-    ss << "  <h1><svg width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"currentColor\"><path d=\"M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z\"/></svg> MemSentry Enterprise Audit</h1>\n";
+    ss << "  <h1><svg width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"currentColor\"><path d=\"M12 1L3 5v6c0 "
+          "5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 "
+          "8.94V12H5V6.3l7-3.11v8.8z\"/></svg> MemSentry Enterprise Audit</h1>\n";
     ss << "  <div>"
        << (records.empty() ? "<span class=\"badge badge-clean\">CLEAN: ZERO LEAKS</span>"
-                            : "<span class=\"badge badge-leak\">LEAKS DETECTED</span>")
+                           : "<span class=\"badge badge-leak\">LEAKS DETECTED</span>")
        << "</div>\n";
     ss << "</header>\n";
 
     ss << "<div class=\"grid\">\n";
-    ss << "  <div class=\"card\"><div class=\"card-title\">Total Leaked</div><div class=\"card-value\" style=\"color:#f85149;\">"
+    ss << "  <div class=\"card\"><div class=\"card-title\">Total Leaked</div><div class=\"card-value\" "
+          "style=\"color:#f85149;\">"
        << format_bytes(total_leak_bytes) << "</div></div>\n";
-    ss << "  <div class=\"card\"><div class=\"card-title\">Active Leaks</div><div class=\"card-value\" style=\"color:#f85149;\">"
+    ss << "  <div class=\"card\"><div class=\"card-title\">Active Leaks</div><div class=\"card-value\" "
+          "style=\"color:#f85149;\">"
        << records.size() << "</div></div>\n";
     ss << "  <div class=\"card\"><div class=\"card-title\">Peak Heap</div><div class=\"card-value\">"
        << format_bytes(stats.peak_allocated_bytes) << "</div></div>\n";
-    ss << "  <div class=\"card\"><div class=\"card-title\">External Frag.</div><div class=\"card-value\">"
-       << std::fixed << std::setprecision(1) << (frag_ratio * 100.0) << " %</div></div>\n";
+    ss << "  <div class=\"card\"><div class=\"card-title\">External Frag.</div><div class=\"card-value\">" << std::fixed
+       << std::setprecision(1) << (frag_ratio * 100.0) << " %</div></div>\n";
     ss << "  <div class=\"card\"><div class=\"card-title\">Lifetime Allocations</div><div class=\"card-value\">"
        << stats.total_allocation_count << "</div></div>\n";
     ss << "  <div class=\"card\"><div class=\"card-title\">Lifetime Frees</div><div class=\"card-value\">"
@@ -356,16 +368,20 @@ std::string HtmlReporter::generate(const MemoryStatsSnapshot& stats, const std::
     // Unreleased Blocks Table Section
     ss << "<div class=\"section\">\n";
     ss << "  <h2>Unreleased Memory Blocks (" << records.size() << ")</h2>\n";
-    ss << "  <input type=\"text\" id=\"searchBox\" placeholder=\"Filter by symbol, file, tag or address...\" onkeyup=\"filterTable()\">\n";
+    ss << "  <input type=\"text\" id=\"searchBox\" placeholder=\"Filter by symbol, file, tag or address...\" "
+          "onkeyup=\"filterTable()\">\n";
     ss << "  <table id=\"leaksTable\">\n";
-    ss << "    <thead><tr><th>ID</th><th>Address</th><th>Size</th><th>Align</th><th>Tag</th><th>Thread</th><th>Frames</th></tr></thead>\n";
+    ss << "    "
+          "<thead><tr><th>ID</th><th>Address</th><th>Size</th><th>Align</th><th>Tag</th><th>Thread</th><th>Frames</"
+          "th></tr></thead>\n";
     ss << "    <tbody>\n";
 
     for (size_t i = 0; i < records.size(); ++i) {
         const auto& rec = records[i];
         ss << "    <tr onclick=\"toggleTrace(" << i << ")\">\n";
         ss << "      <td>#" << rec.allocation_id << "</td>\n";
-        ss << "      <td><code>0x" << std::hex << reinterpret_cast<uintptr_t>(rec.user_ptr) << std::dec << "</code></td>\n";
+        ss << "      <td><code>0x" << std::hex << reinterpret_cast<uintptr_t>(rec.user_ptr) << std::dec
+           << "</code></td>\n";
         ss << "      <td><strong>" << rec.requested_size << " B</strong></td>\n";
         ss << "      <td>" << rec.alignment << " B</td>\n";
         ss << "      <td><span class=\"tag-pill\">" << (rec.tag ? rec.tag : "General") << "</span></td>\n";

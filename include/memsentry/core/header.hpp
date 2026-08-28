@@ -27,7 +27,8 @@ struct alignas(16) BlockHeader {
 
 static_assert(sizeof(BlockHeader) == 64, "BlockHeader must be 64 bytes for cacheline alignment");
 
-inline size_t calculate_total_size(size_t requested_size, size_t alignment, size_t footer_size) noexcept {
+MEMSENTRY_NO_SANITIZE inline size_t calculate_total_size(size_t requested_size, size_t alignment,
+                                                         size_t footer_size) noexcept {
     size_t eff_align = (alignment > alignof(std::max_align_t)) ? alignment : alignof(std::max_align_t);
     size_t max_offset = sizeof(BlockHeader) + sizeof(uint32_t) + eff_align;
     if (requested_size > SIZE_MAX - max_offset - footer_size) {
@@ -36,8 +37,9 @@ inline size_t calculate_total_size(size_t requested_size, size_t alignment, size
     return max_offset + requested_size + footer_size;
 }
 
-inline void* init_block(void* raw_memory, size_t requested_size, size_t alignment, size_t footer_size,
-                        uint64_t alloc_id, const char* tag, bool enable_canary, uint32_t thread_id = 0) noexcept {
+MEMSENTRY_NO_SANITIZE inline void* init_block(void* raw_memory, size_t requested_size, size_t alignment,
+                                              size_t footer_size, uint64_t alloc_id, const char* tag,
+                                              bool enable_canary, uint32_t thread_id = 0) noexcept {
     if (!raw_memory)
         return nullptr;
 
@@ -80,15 +82,15 @@ inline void* init_block(void* raw_memory, size_t requested_size, size_t alignmen
     return user_ptr;
 }
 
-inline BlockHeader* get_header_from_raw_ptr(void* raw_ptr) noexcept {
+MEMSENTRY_NO_SANITIZE inline BlockHeader* get_header_from_raw_ptr(void* raw_ptr) noexcept {
     return reinterpret_cast<BlockHeader*>(raw_ptr);
 }
 
-inline const BlockHeader* get_header_from_raw_ptr(const void* raw_ptr) noexcept {
+MEMSENTRY_NO_SANITIZE inline const BlockHeader* get_header_from_raw_ptr(const void* raw_ptr) noexcept {
     return reinterpret_cast<const BlockHeader*>(raw_ptr);
 }
 
-inline BlockHeader* get_header_from_user_ptr(const void* user_ptr) noexcept {
+MEMSENTRY_NO_SANITIZE inline BlockHeader* get_header_from_user_ptr(const void* user_ptr) noexcept {
     if (!user_ptr)
         return nullptr;
     uintptr_t user_addr = reinterpret_cast<uintptr_t>(user_ptr);
@@ -110,7 +112,7 @@ inline BlockHeader* get_header_from_user_ptr(const void* user_ptr) noexcept {
     return nullptr;
 }
 
-inline CorruptionType verify_canary(const BlockHeader* header, size_t footer_size) noexcept {
+MEMSENTRY_NO_SANITIZE inline CorruptionType verify_canary(const BlockHeader* header, size_t footer_size) noexcept {
     if (!header)
         return CorruptionType::UNTRACKED_POINTER;
     if (header->magic == CANARY_FREED_MAGIC) {
@@ -137,7 +139,7 @@ inline CorruptionType verify_canary(const BlockHeader* header, size_t footer_siz
     return CorruptionType::NONE;
 }
 
-inline void poison_block(BlockHeader* header, size_t footer_size) noexcept {
+MEMSENTRY_NO_SANITIZE inline void poison_block(BlockHeader* header, size_t footer_size) noexcept {
     if (!header)
         return;
     header->magic = CANARY_FREED_MAGIC;

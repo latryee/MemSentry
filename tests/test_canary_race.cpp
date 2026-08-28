@@ -1,5 +1,6 @@
 #include "memsentry/core/allocator_hooks.hpp"
 #include "memsentry/core/header.hpp"
+#include "memsentry/core/msvc_debug_guard.hpp"
 #include "memsentry/memsentry.hpp"
 
 #include <atomic>
@@ -44,7 +45,7 @@ template <typename T> inline void do_not_optimize(T const& value) {
 }
 
 // 1. High-contention concurrent allocation, payload modification, and deallocation
-void test_concurrent_canary_alloc_free_stress() {
+MEMSENTRY_NO_SANITIZE void test_concurrent_canary_alloc_free_stress() {
     constexpr int NUM_THREADS = 8;
     constexpr int ITERATIONS = 1000;
 
@@ -99,7 +100,7 @@ void test_concurrent_canary_alloc_free_stress() {
 }
 
 // 2. Shared block concurrent multi-threaded read/write with boundary preservation
-void test_shared_block_concurrent_access() {
+MEMSENTRY_NO_SANITIZE void test_shared_block_concurrent_access() {
     constexpr int NUM_READERS = 4;
     constexpr int NUM_WRITERS = 4;
     constexpr size_t BLOCK_SIZE = 1024 * 16;
