@@ -84,8 +84,14 @@ void memsentry_aligned_free(void* ptr) noexcept {
 #endif
 }
 
-#if defined(__GNUC__) || defined(__clang__)
+#if defined(MEMSENTRY_TSAN_BUILD) || defined(__SANITIZE_THREAD__)
 #define MEMSENTRY_WEAK __attribute__((weak))
+#elif defined(__has_feature)
+#if __has_feature(thread_sanitizer)
+#define MEMSENTRY_WEAK __attribute__((weak))
+#else
+#define MEMSENTRY_WEAK
+#endif
 #else
 #define MEMSENTRY_WEAK
 #endif
