@@ -84,12 +84,8 @@ void memsentry_aligned_free(void* ptr) noexcept {
 #endif
 }
 
-#if !defined(MEMSENTRY_SANITIZER_ACTIVE) && !defined(__SANITIZE_THREAD__) && !defined(__SANITIZE_ADDRESS__) &&         \
-    !(defined(__has_feature) &&                                                                                        \
-      (__has_feature(thread_sanitizer) || __has_feature(address_sanitizer) || __has_feature(memory_sanitizer)))
-
 #if defined(__GNUC__) || defined(__clang__)
-#define MEMSENTRY_WEAK [[gnu::weak]]
+#define MEMSENTRY_WEAK __attribute__((weak))
 #else
 #define MEMSENTRY_WEAK
 #endif
@@ -209,5 +205,3 @@ void operator delete[](void* ptr, int, const char*, int) noexcept {
     memsentry::core::track_free(ptr);
 }
 #endif
-
-#endif  // !defined(MEMSENTRY_SANITIZER_ACTIVE)
