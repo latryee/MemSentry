@@ -44,12 +44,8 @@ target_include_directories(memsentry PUBLIC
 if (MSVC)
     add_compile_options(/EHsc /W3 /Zc:__cplusplus)
     target_link_options(memsentry INTERFACE $<$<CXX_COMPILER_ID:MSVC>:/WHOLEARCHIVE:$<TARGET_FILE:memsentry>>)
-elseif (APPLE)
-    add_compile_options(-Wall -Wextra -Wno-unused-parameter)
-    target_link_options(memsentry INTERFACE $<$<CXX_COMPILER_ID:AppleClang,Clang>:-Wl,-force_load,$<TARGET_FILE:memsentry>>)
 else()
     add_compile_options(-Wall -Wextra -Wno-unused-parameter)
-    target_link_options(memsentry INTERFACE $<$<CXX_COMPILER_ID:GNU,Clang>:-Wl,--whole-archive,$<TARGET_FILE:memsentry>,-Wl,--no-whole-archive>)
 endif()
 
 if (WIN32)
