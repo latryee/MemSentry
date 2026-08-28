@@ -19,7 +19,8 @@ struct BenchmarkResult {
 template <typename T>
 inline void do_not_optimize(T const& value) {
 #if defined(_MSC_VER)
-    *reinterpret_cast<const volatile char*>(&value);
+    auto volatile dummy = *reinterpret_cast<const volatile char*>(&value);
+    (void)dummy;
 #else
     asm volatile("" : : "r,m"(value) : "memory");
 #endif
