@@ -84,95 +84,105 @@ void memsentry_aligned_free(void* ptr) noexcept {
 #endif
 }
 
-void* operator new(std::size_t size) {
+#if !defined(MEMSENTRY_SANITIZER_ACTIVE) && !defined(__SANITIZE_THREAD__) && !defined(__SANITIZE_ADDRESS__) &&         \
+    !(defined(__has_feature) &&                                                                                        \
+      (__has_feature(thread_sanitizer) || __has_feature(address_sanitizer) || __has_feature(memory_sanitizer)))
+
+#if defined(__GNUC__) || defined(__clang__)
+#define MEMSENTRY_WEAK [[gnu::weak]]
+#else
+#define MEMSENTRY_WEAK
+#endif
+
+MEMSENTRY_WEAK void* operator new(std::size_t size) {
     void* ptr = memsentry::core::track_alloc(size);
     if (!ptr)
         throw std::bad_alloc();
     return ptr;
 }
 
-void* operator new[](std::size_t size) {
+MEMSENTRY_WEAK void* operator new[](std::size_t size) {
     void* ptr = memsentry::core::track_alloc(size);
     if (!ptr)
         throw std::bad_alloc();
     return ptr;
 }
 
-void* operator new(std::size_t size, const std::nothrow_t&) noexcept {
+MEMSENTRY_WEAK void* operator new(std::size_t size, const std::nothrow_t&) noexcept {
     return memsentry::core::track_alloc(size);
 }
 
-void* operator new[](std::size_t size, const std::nothrow_t&) noexcept {
+MEMSENTRY_WEAK void* operator new[](std::size_t size, const std::nothrow_t&) noexcept {
     return memsentry::core::track_alloc(size);
 }
 
-void* operator new(std::size_t size, std::align_val_t al) {
+MEMSENTRY_WEAK void* operator new(std::size_t size, std::align_val_t al) {
     void* ptr = memsentry::core::track_alloc(size, static_cast<std::size_t>(al));
     if (!ptr)
         throw std::bad_alloc();
     return ptr;
 }
 
-void* operator new[](std::size_t size, std::align_val_t al) {
+MEMSENTRY_WEAK void* operator new[](std::size_t size, std::align_val_t al) {
     void* ptr = memsentry::core::track_alloc(size, static_cast<std::size_t>(al));
     if (!ptr)
         throw std::bad_alloc();
     return ptr;
 }
 
-void* operator new(std::size_t size, std::align_val_t al, const std::nothrow_t&) noexcept {
+MEMSENTRY_WEAK void* operator new(std::size_t size, std::align_val_t al, const std::nothrow_t&) noexcept {
     return memsentry::core::track_alloc(size, static_cast<std::size_t>(al));
 }
 
-void* operator new[](std::size_t size, std::align_val_t al, const std::nothrow_t&) noexcept {
+MEMSENTRY_WEAK void* operator new[](std::size_t size, std::align_val_t al, const std::nothrow_t&) noexcept {
     return memsentry::core::track_alloc(size, static_cast<std::size_t>(al));
 }
 
-void operator delete(void* ptr) noexcept {
+MEMSENTRY_WEAK void operator delete(void* ptr) noexcept {
     memsentry::core::track_free(ptr);
 }
 
-void operator delete[](void* ptr) noexcept {
+MEMSENTRY_WEAK void operator delete[](void* ptr) noexcept {
     memsentry::core::track_free(ptr);
 }
 
-void operator delete(void* ptr, const std::nothrow_t&) noexcept {
+MEMSENTRY_WEAK void operator delete(void* ptr, const std::nothrow_t&) noexcept {
     memsentry::core::track_free(ptr);
 }
 
-void operator delete[](void* ptr, const std::nothrow_t&) noexcept {
+MEMSENTRY_WEAK void operator delete[](void* ptr, const std::nothrow_t&) noexcept {
     memsentry::core::track_free(ptr);
 }
 
-void operator delete(void* ptr, std::size_t) noexcept {
+MEMSENTRY_WEAK void operator delete(void* ptr, std::size_t) noexcept {
     memsentry::core::track_free(ptr);
 }
 
-void operator delete[](void* ptr, std::size_t) noexcept {
+MEMSENTRY_WEAK void operator delete[](void* ptr, std::size_t) noexcept {
     memsentry::core::track_free(ptr);
 }
 
-void operator delete(void* ptr, std::align_val_t) noexcept {
+MEMSENTRY_WEAK void operator delete(void* ptr, std::align_val_t) noexcept {
     memsentry::core::track_free(ptr);
 }
 
-void operator delete[](void* ptr, std::align_val_t) noexcept {
+MEMSENTRY_WEAK void operator delete[](void* ptr, std::align_val_t) noexcept {
     memsentry::core::track_free(ptr);
 }
 
-void operator delete(void* ptr, std::align_val_t, const std::nothrow_t&) noexcept {
+MEMSENTRY_WEAK void operator delete(void* ptr, std::align_val_t, const std::nothrow_t&) noexcept {
     memsentry::core::track_free(ptr);
 }
 
-void operator delete[](void* ptr, std::align_val_t, const std::nothrow_t&) noexcept {
+MEMSENTRY_WEAK void operator delete[](void* ptr, std::align_val_t, const std::nothrow_t&) noexcept {
     memsentry::core::track_free(ptr);
 }
 
-void operator delete(void* ptr, std::size_t, std::align_val_t) noexcept {
+MEMSENTRY_WEAK void operator delete(void* ptr, std::size_t, std::align_val_t) noexcept {
     memsentry::core::track_free(ptr);
 }
 
-void operator delete[](void* ptr, std::size_t, std::align_val_t) noexcept {
+MEMSENTRY_WEAK void operator delete[](void* ptr, std::size_t, std::align_val_t) noexcept {
     memsentry::core::track_free(ptr);
 }
 
@@ -199,3 +209,5 @@ void operator delete[](void* ptr, int, const char*, int) noexcept {
     memsentry::core::track_free(ptr);
 }
 #endif
+
+#endif  // !defined(MEMSENTRY_SANITIZER_ACTIVE)

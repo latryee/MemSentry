@@ -1,5 +1,6 @@
 #pragma once
 
+#include "memsentry/core/recursion_guard.hpp"
 #include "memsentry/stacktrace/stacktrace.hpp"
 #include "memsentry/types.hpp"
 

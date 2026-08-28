@@ -1,3 +1,5 @@
+#include "memsentry/core/msvc_debug_guard.hpp"
+#include "memsentry/core/suppression_engine.hpp"
 #include "memsentry/memsentry.hpp"
 
 #include <cassert>
@@ -38,40 +40,57 @@ template <typename T> inline void do_not_optimize(T const& value) {
 #endif
 }
 
-void* allocate_third_party_leak() {
+MEMSENTRY_NO_SANITIZE void* allocate_third_party_leak() {
     MEMSENTRY_SCOPE_TAG("ThirdParty_VendorSDK");
     int* p = new int[64];
     do_not_optimize(p);
     return p;
 }
 
-void* allocate_legitimate_leak() {
+MEMSENTRY_NO_SANITIZE void* allocate_legitimate_leak() {
     MEMSENTRY_SCOPE_TAG("AppCore");
     int* p = new int[32];
     do_not_optimize(p);
     return p;
 }
 
-void test_tag_suppression() {
+MEMSENTRY_NO_SANITIZE void test_tag_suppression() {
     memsentry::clear_suppressions();
 
     // 1. Initially no suppressions
+    size_t base_suppressed = memsentry::get_suppressed_count();
     void* vendor_leak = allocate_third_party_leak();
     TEST_ASSERT(memsentry::has_leaks(), "Must detect leak");
     TEST_ASSERT(memsentry::has_unsuppressed_leaks(), "Must have unsuppressed leaks");
-    TEST_ASSERT(memsentry::get_suppressed_count() == 0, "Suppressed count should be 0");
+    TEST_ASSERT(memsentry::get_suppressed_count() == base_suppressed, "Suppressed count should not change");
 
     // 2. Add suppression rule for the vendor tag
     memsentry::suppress("ThirdParty_VendorSDK");
-    TEST_ASSERT(memsentry::get_suppressed_count() >= 1, "Vendor leak should now be suppressed");
+    TEST_ASSERT(memsentry::get_suppressed_count() > base_suppressed, "Vendor leak should now be suppressed");
 
     // 3. Add an unsuppressed application leak
+    size_t vendor_suppressed = memsentry::get_suppressed_count();
     void* app_leak = allocate_legitimate_leak();
     TEST_ASSERT(memsentry::has_unsuppressed_leaks(), "Application leak must be flagged as unsuppressed");
 
     // 4. Suppress the application leak as well
     memsentry::suppress("AppCore");
-    TEST_ASSERT(!memsentry::has_unsuppressed_leaks(), "Both leaks are now suppressed");
+    TEST_ASSERT(memsentry::get_suppressed_count() > vendor_suppressed, "AppCore leak is now suppressed");
+
+    // 5. Verify both allocated pointers are identified as suppressed
+    auto active = memsentry::get_active_allocations();
+    bool vendor_found_suppressed = false;
+    bool app_found_suppressed = false;
+    for (const auto& rec : active) {
+        if (rec.user_ptr == vendor_leak) {
+            vendor_found_suppressed = memsentry::core::SuppressionEngine::instance().is_suppressed(rec);
+        }
+        if (rec.user_ptr == app_leak) {
+            app_found_suppressed = memsentry::core::SuppressionEngine::instance().is_suppressed(rec);
+        }
+    }
+    TEST_ASSERT(vendor_found_suppressed, "Vendor pointer must be confirmed suppressed");
+    TEST_ASSERT(app_found_suppressed, "AppCore pointer must be confirmed suppressed");
 
     // Clean up
     delete[] reinterpret_cast<int*>(vendor_leak);
@@ -79,7 +98,7 @@ void test_tag_suppression() {
     memsentry::clear_suppressions();
 }
 
-void test_symbol_or_file_suppression() {
+MEMSENTRY_NO_SANITIZE void test_symbol_or_file_suppression() {
     memsentry::clear_suppressions();
 
     void* ptr = new double[100];
