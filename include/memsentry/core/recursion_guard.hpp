@@ -2,7 +2,7 @@
 
 namespace memsentry::core {
 
-extern thread_local int g_recursion_depth;
+inline thread_local int g_recursion_depth = 0;
 
 class RecursionGuard {
 public:

@@ -2,7 +2,7 @@
 
 namespace memsentry::profiler {
 
-extern thread_local const char* g_active_scope_tag;
+inline thread_local const char* g_active_scope_tag = nullptr;
 
 class ScopedTag {
 public:

@@ -27,14 +27,6 @@
 #include <unistd.h>
 #endif
 
-namespace memsentry::core {
-thread_local int g_recursion_depth = 0;
-}
-
-namespace memsentry::profiler {
-thread_local const char* g_active_scope_tag = nullptr;
-}
-
 namespace memsentry {
 
 class Manager {
@@ -274,8 +266,12 @@ private:
 };
 
 Manager& Manager::instance() noexcept {
-    static Manager inst;
-    return inst;
+    alignas(Manager) static char storage[sizeof(Manager)];
+    static Manager* inst = []() {
+        core::RecursionGuard guard;
+        return new (storage) Manager();
+    }();
+    return *inst;
 }
 
 void init(const Config& config) {

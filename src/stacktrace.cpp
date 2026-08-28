@@ -26,17 +26,19 @@
 namespace memsentry::stacktrace {
 
 StackTraceProvider& StackTraceProvider::instance() noexcept {
-    static StackTraceProvider inst;
-    return inst;
+    alignas(StackTraceProvider) static char storage[sizeof(StackTraceProvider)];
+    static StackTraceProvider* inst = []() {
+        core::RecursionGuard guard;
+        return new (storage) StackTraceProvider();
+    }();
+    return *inst;
 }
 
 StackTraceProvider::StackTraceProvider() {
     core::RecursionGuard guard;
 }
 
-StackTraceProvider::~StackTraceProvider() {
-    cleanup();
-}
+StackTraceProvider::~StackTraceProvider() = default;
 
 void StackTraceProvider::initialize() {
     // Lazy initialization in resolve_frame to avoid early loader/symbol issues on MSVC Debug
