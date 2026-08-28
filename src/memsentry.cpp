@@ -67,13 +67,20 @@ public:
         core::RecursionGuard guard;
 
         size_t footer_size = config_.enable_canary ? config_.canary_footer_size : 0;
-        size_t total_size = size + footer_size;
+        size_t align = (alignment > DEFAULT_ALIGNMENT) ? alignment : DEFAULT_ALIGNMENT;
+        size_t extra_align = (align > DEFAULT_ALIGNMENT) ? align : 0;
+        size_t total_size = size + footer_size + extra_align;
         if (total_size < size) return nullptr;
 
         void* raw_ptr = std::malloc(total_size);
         if (!raw_ptr) return nullptr;
 
         void* user_ptr = raw_ptr;
+        if (extra_align > 0) {
+            uintptr_t raw_addr = reinterpret_cast<uintptr_t>(raw_ptr);
+            uintptr_t user_addr = (raw_addr + (align - 1)) & ~(align - 1);
+            user_ptr = reinterpret_cast<void*>(user_addr);
+        }
 
         if (config_.enable_canary && footer_size >= sizeof(uint64_t)) {
             uint8_t* footer_ptr = reinterpret_cast<uint8_t*>(user_ptr) + size;
