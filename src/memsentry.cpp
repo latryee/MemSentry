@@ -16,6 +16,39 @@
 #if defined(_MSC_VER) && defined(_DEBUG)
 #include <crtdbg.h>
 #endif
+
+static LONG WINAPI MemsentryCrashHandler(PEXCEPTION_POINTERS pExceptionInfo) {
+    if (!pExceptionInfo || !pExceptionInfo->ExceptionRecord) return EXCEPTION_CONTINUE_SEARCH;
+    DWORD code = pExceptionInfo->ExceptionRecord->ExceptionCode;
+    if (code == 0xE06D7363 /* C++ exception */ || code == EXCEPTION_BREAKPOINT) {
+        return EXCEPTION_CONTINUE_SEARCH;
+    }
+    char buffer[256];
+    int len = snprintf(buffer, sizeof(buffer),
+        "\n[FATAL CRASH] ExceptionCode=0x%08lX Address=0x%p Flags=0x%08lX\n",
+        static_cast<unsigned long>(code),
+        pExceptionInfo->ExceptionRecord->ExceptionAddress,
+        static_cast<unsigned long>(pExceptionInfo->ExceptionRecord->ExceptionFlags)
+    );
+    if (len > 0) {
+        DWORD written = 0;
+        HANDLE hErr = GetStdHandle(STD_ERROR_HANDLE);
+        if (hErr != INVALID_HANDLE_VALUE && hErr != nullptr) {
+            WriteFile(hErr, buffer, static_cast<DWORD>(len), &written, nullptr);
+            FlushFileBuffers(hErr);
+        }
+    }
+    return EXCEPTION_CONTINUE_SEARCH;
+}
+
+namespace {
+struct CrashHandlerInstaller {
+    CrashHandlerInstaller() {
+        AddVectoredExceptionHandler(1, MemsentryCrashHandler);
+    }
+};
+static CrashHandlerInstaller g_crash_installer;
+}
 #elif defined(__linux__)
 #include <unistd.h>
 #if defined(__has_include)
