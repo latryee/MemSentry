@@ -27,6 +27,14 @@
 #include <unistd.h>
 #endif
 
+namespace memsentry::core {
+thread_local int g_recursion_depth = 0;
+}
+
+namespace memsentry::profiler {
+thread_local const char* g_active_scope_tag = nullptr;
+}
+
 namespace memsentry {
 
 class Manager {
@@ -230,7 +238,9 @@ public:
     }
 
 private:
-    Manager() = default;
+    Manager() {
+        core::RecursionGuard guard;
+    }
     ~Manager() = default;
 
     void on_exit() {
@@ -263,25 +273,9 @@ private:
     core::ShardedTracker tracker_;
 };
 
-namespace {
-alignas(64) uint8_t g_manager_storage[sizeof(Manager)];
-std::atomic<bool> g_manager_constructed{false};
-std::atomic_flag g_manager_init_lock = ATOMIC_FLAG_INIT;
-}
-
 Manager& Manager::instance() noexcept {
-    if (!g_manager_constructed.load(std::memory_order_acquire)) {
-        while (g_manager_init_lock.test_and_set(std::memory_order_acquire)) {
-            std::this_thread::yield();
-        }
-        if (!g_manager_constructed.load(std::memory_order_relaxed)) {
-            core::RecursionGuard guard;
-            new (g_manager_storage) Manager();
-            g_manager_constructed.store(true, std::memory_order_release);
-        }
-        g_manager_init_lock.clear(std::memory_order_release);
-    }
-    return *reinterpret_cast<Manager*>(g_manager_storage);
+    static Manager inst;
+    return inst;
 }
 
 void init(const Config& config) {
