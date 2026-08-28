@@ -34,14 +34,8 @@ jobs:
           -DMEMSENTRY_BUILD_TESTS=ON
           -DMEMSENTRY_BUILD_EXAMPLES=ON
 
-      - name: Build MemSentry (Linux/macOS)
-        if: runner.os != 'Windows'
+      - name: Build MemSentry
         run: cmake --build build --config ${{ matrix.build_type }} --parallel
-
-      - name: Build MemSentry (Windows)
-        if: runner.os == 'Windows'
-        shell: cmd
-        run: cmake --build build --config ${{ matrix.build_type }} > build_log.txt 2>&1 || (type build_log.txt && exit /b 1)
 
       - name: Run Tests
         run: ctest --test-dir build -C ${{ matrix.build_type }} --output-on-failure --verbose
