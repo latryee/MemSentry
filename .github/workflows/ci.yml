@@ -40,12 +40,9 @@ jobs:
       - name: Run Tests
         run: ctest --test-dir build -C ${{ matrix.build_type }} --output-on-failure --verbose
 
-      - name: Diagnostic Run on Failure
-        if: failure() && runner.os == 'Windows' && matrix.build_type == 'Debug'
-        run: |
-          Write-Host "=== RUNNING TEST_CANARY ==="
-          & .\build\Debug\test_canary.exe
-          Write-Host "=== RUNNING TEST_TRACKER ==="
-          & .\build\Debug\test_tracker.exe
-          Write-Host "=== RUNNING TEST_SUITE ==="
-          & .\build\Debug\test_suite.exe
+      - name: Upload Test Logs on Failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-logs-${{ matrix.os }}-${{ matrix.build_type }}
+          path: build/Testing/Temporary/LastTest.log
