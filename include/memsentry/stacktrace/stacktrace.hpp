@@ -4,6 +4,8 @@
 #include <vector>
 #include <string>
 #include <array>
+#include <mutex>
+#include <unordered_map>
 #include "memsentry/types.hpp"
 
 namespace memsentry::stacktrace {
@@ -27,6 +29,8 @@ private:
     StackTraceProvider& operator=(const StackTraceProvider&) = delete;
 
     bool initialized_ = false;
+    std::mutex symbol_mutex_;
+    std::unordered_map<uintptr_t, StackFrame> symbol_cache_;
 };
 
 }

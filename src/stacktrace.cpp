@@ -25,9 +25,6 @@
 
 namespace memsentry::stacktrace {
 
-static std::mutex g_symbol_mutex;
-static std::unordered_map<uintptr_t, StackFrame> g_symbol_cache;
-
 namespace {
 alignas(64) uint8_t g_provider_storage[sizeof(StackTraceProvider)];
 std::atomic<bool> g_provider_constructed{false};
@@ -60,7 +57,7 @@ void StackTraceProvider::initialize() {
 
 void StackTraceProvider::cleanup() {
     core::RecursionGuard guard;
-    std::lock_guard<std::mutex> lock(g_symbol_mutex);
+    std::lock_guard<std::mutex> lock(symbol_mutex_);
     if (!initialized_) return;
 
 #if defined(_WIN32)
@@ -68,7 +65,7 @@ void StackTraceProvider::cleanup() {
 #endif
 
     initialized_ = false;
-    g_symbol_cache.clear();
+    symbol_cache_.clear();
 }
 
 uint16_t StackTraceProvider::capture(void** out_frames, uint32_t max_depth, uint32_t skip_frames) noexcept {
@@ -102,10 +99,10 @@ uint16_t StackTraceProvider::capture(void** out_frames, uint32_t max_depth, uint
 
 StackFrame StackTraceProvider::resolve_frame(uintptr_t address) {
     core::RecursionGuard guard;
-    std::lock_guard<std::mutex> lock(g_symbol_mutex);
+    std::lock_guard<std::mutex> lock(symbol_mutex_);
 
-    auto it = g_symbol_cache.find(address);
-    if (it != g_symbol_cache.end()) {
+    auto it = symbol_cache_.find(address);
+    if (it != symbol_cache_.end()) {
         return it->second;
     }
 
@@ -163,7 +160,7 @@ StackFrame StackTraceProvider::resolve_frame(uintptr_t address) {
     }
 #endif
 
-    g_symbol_cache[address] = frame;
+    symbol_cache_[address] = frame;
     return frame;
 }
 
