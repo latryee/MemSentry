@@ -40,7 +40,8 @@ jobs:
 
       - name: Build MemSentry (Windows)
         if: runner.os == 'Windows'
-        run: cmake --build build --config ${{ matrix.build_type }} -- -v:n
+        shell: cmd
+        run: cmake --build build --config ${{ matrix.build_type }} > build_log.txt 2>&1 || (type build_log.txt && exit /b 1)
 
       - name: Run Tests
         run: ctest --test-dir build -C ${{ matrix.build_type }} --output-on-failure --verbose
