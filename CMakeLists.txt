@@ -43,7 +43,7 @@ target_include_directories(memsentry PUBLIC
 
 if (MSVC)
     add_compile_options(/EHsc /W3 /Zc:__cplusplus)
-    add_link_options(/FORCE:MULTIPLE)
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /FORCE:MULTIPLE")
 else()
     add_compile_options(-Wall -Wextra -Wno-unused-parameter)
 endif()
