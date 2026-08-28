@@ -38,4 +38,14 @@ jobs:
         run: cmake --build build --config ${{ matrix.build_type }} --parallel
 
       - name: Run Tests
-        run: ctest --test-dir build -C ${{ matrix.build_type }} --output-on-failure --verbose --extra-verbose
+        run: ctest --test-dir build -C ${{ matrix.build_type }} --output-on-failure --verbose
+
+      - name: Diagnostic Run on Failure
+        if: failure() && runner.os == 'Windows' && matrix.build_type == 'Debug'
+        run: |
+          Write-Host "=== RUNNING TEST_CANARY ==="
+          & .\build\Debug\test_canary.exe
+          Write-Host "=== RUNNING TEST_TRACKER ==="
+          & .\build\Debug\test_tracker.exe
+          Write-Host "=== RUNNING TEST_SUITE ==="
+          & .\build\Debug\test_suite.exe
