@@ -1,4 +1,4 @@
-﻿#include "memsentry/memsentry.hpp"
+#include "memsentry/memsentry.hpp"
 #include "memsentry/core/recursion_guard.hpp"
 #include <iostream>
 #include <vector>
@@ -17,7 +17,11 @@ struct BenchmarkResult {
 
 template <typename T>
 inline void do_not_optimize(T const& value) {
+#if defined(_MSC_VER)
+    *reinterpret_cast<const volatile char*>(&value);
+#else
     asm volatile("" : : "r,m"(value) : "memory");
+#endif
 }
 
 void print_result(const BenchmarkResult& res) {

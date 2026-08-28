@@ -4,6 +4,15 @@
 #include <vector>
 #include <iostream>
 
+template <typename T>
+inline void do_not_optimize(T const& value) {
+#if defined(_MSC_VER)
+    *reinterpret_cast<const volatile char*>(&value);
+#else
+    asm volatile("" : : "r,m"(value) : "memory");
+#endif
+}
+
 void thread_stress_worker(int thread_id, int iterations) {
     (void)thread_id;
     MEMSENTRY_SCOPE_TAG("StressWorker");
@@ -13,10 +22,14 @@ void thread_stress_worker(int thread_id, int iterations) {
     for (int i = 0; i < iterations; ++i) {
         size_t sz = (i % 32 + 1) * 16;
         void* p = memsentry::core::track_alloc(sz);
-        if (p) ptrs.push_back(p);
+        if (p) {
+            do_not_optimize(p);
+            ptrs.push_back(p);
+        }
     }
 
     for (void* p : ptrs) {
+        do_not_optimize(p);
         memsentry::core::track_free(p);
     }
 }
