@@ -122,10 +122,10 @@ jobs:
         run: >
           cmake -B build-asan
           -DCMAKE_CXX_COMPILER=clang++
-          -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer -O1"
-          -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined"
           -DCMAKE_BUILD_TYPE=Debug
+          -DMEMSENTRY_ENABLE_ASAN=ON
           -DMEMSENTRY_BUILD_TESTS=ON
+          -DMEMSENTRY_BUILD_EXAMPLES=OFF
 
       - name: Build & Run ASan
         env:
@@ -139,10 +139,10 @@ jobs:
         run: >
           cmake -B build-tsan
           -DCMAKE_CXX_COMPILER=clang++
-          -DCMAKE_CXX_FLAGS="-fsanitize=thread -fno-omit-frame-pointer -O1"
-          -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=thread"
           -DCMAKE_BUILD_TYPE=Debug
+          -DMEMSENTRY_ENABLE_TSAN=ON
           -DMEMSENTRY_BUILD_TESTS=ON
+          -DMEMSENTRY_BUILD_EXAMPLES=OFF
 
       - name: Build & Run TSan
         env:
@@ -158,17 +158,17 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install lcov & gcovr
-        run: sudo apt-get update && sudo apt-get install -y lcov gcovr
+      - name: Install gcovr
+        run: sudo apt-get update && sudo apt-get install -y gcovr
 
       - name: Configure CMake with Coverage
         run: >
           cmake -B build-cov
           -DCMAKE_CXX_COMPILER=g++
-          -DCMAKE_CXX_FLAGS="--coverage -fprofile-arcs -ftest-coverage -O0 -g"
-          -DCMAKE_EXE_LINKER_FLAGS="--coverage"
           -DCMAKE_BUILD_TYPE=Debug
+          -DMEMSENTRY_ENABLE_COVERAGE=ON
           -DMEMSENTRY_BUILD_TESTS=ON
+          -DMEMSENTRY_BUILD_EXAMPLES=OFF
 
       - name: Build Tests
         run: cmake --build build-cov --parallel
@@ -178,7 +178,7 @@ jobs:
 
       - name: Generate Coverage Report
         run: |
-          gcovr -r . --filter 'src/' --filter 'include/' --cobertura coverage.xml --print-summary
+          gcovr -r . --filter 'src/' --filter 'include/' --xml coverage.xml --print-summary
 
       - name: Upload to Codecov
         uses: codecov/codecov-action@v4

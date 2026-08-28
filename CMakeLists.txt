@@ -9,6 +9,25 @@ include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 find_package(Threads REQUIRED)
 
+option(MEMSENTRY_ENABLE_ASAN "Enable Address & UB Sanitizers" OFF)
+option(MEMSENTRY_ENABLE_TSAN "Enable ThreadSanitizer" OFF)
+option(MEMSENTRY_ENABLE_COVERAGE "Enable GCC Code Coverage" OFF)
+
+if (MEMSENTRY_ENABLE_ASAN)
+    add_compile_options(-fsanitize=address,undefined -fno-omit-frame-pointer)
+    add_link_options(-fsanitize=address,undefined)
+endif()
+
+if (MEMSENTRY_ENABLE_TSAN)
+    add_compile_options(-fsanitize=thread -fno-omit-frame-pointer)
+    add_link_options(-fsanitize=thread)
+endif()
+
+if (MEMSENTRY_ENABLE_COVERAGE)
+    add_compile_options(--coverage -O0 -g)
+    add_link_options(--coverage)
+endif()
+
 set(MEMSENTRY_SOURCES
     src/memsentry.cpp
     src/allocator_hooks.cpp
@@ -45,8 +64,8 @@ target_include_directories(memsentry PUBLIC
 )
 
 if (MSVC)
-    add_compile_options(/EHsc /W3 /Zc:__cplusplus /Zc:tlsGuards-)
-    target_link_options(memsentry INTERFACE $<$<CXX_COMPILER_ID:MSVC>:/WHOLEARCHIVE:$<TARGET_FILE:memsentry>>)
+    add_compile_options(/EHsc /W3 /Zc:__cplusplus /Zc:tlsGuards- /D_CRT_SECURE_NO_WARNINGS)
+    target_link_options(memsentry INTERFACE $<$<CXX_COMPILER_ID:MSVC>:/FORCE:MULTIPLE>)
 else()
     add_compile_options(-Wall -Wextra -Wno-unused-parameter)
 endif()
