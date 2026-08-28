@@ -34,10 +34,9 @@ public:
     static Manager& instance() noexcept;
 
     void initialize(const Config& config) {
-        if (initialized_.exchange(true)) return;
-
         core::RecursionGuard guard;
         config_ = config;
+        if (initialized_.exchange(true)) return;
 
         volatile int anchor = core::ensure_hooks_linked();
         (void)anchor;
