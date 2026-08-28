@@ -66,21 +66,26 @@ public:
 
         core::RecursionGuard guard;
 
-        size_t total_size = core::calculate_total_size(size, alignment, config_.canary_footer_size);
-        if (total_size == 0) return nullptr;
+        size_t footer_size = config_.enable_canary ? config_.canary_footer_size : 0;
+        size_t total_size = size + footer_size;
+        if (total_size < size) return nullptr;
 
         void* raw_ptr = std::malloc(total_size);
         if (!raw_ptr) return nullptr;
 
+        void* user_ptr = raw_ptr;
+
+        if (config_.enable_canary && footer_size >= sizeof(uint64_t)) {
+            uint8_t* footer_ptr = reinterpret_cast<uint8_t*>(user_ptr) + size;
+            for (size_t i = 0; i < footer_size; i += sizeof(uint64_t)) {
+                size_t copy_len = (footer_size - i < sizeof(uint64_t)) ? (footer_size - i) : sizeof(uint64_t);
+                std::memcpy(footer_ptr + i, &CANARY_FOOTER_MAGIC, copy_len);
+            }
+        }
+
         uint64_t alloc_id = alloc_counter_.fetch_add(1, std::memory_order_relaxed);
         const char* active_tag = profiler::ScopedTag::current();
         const char* final_tag = tag ? tag : (active_tag ? active_tag : config_.default_tag);
-
-        void* user_ptr = core::init_block(raw_ptr, size, alignment, config_.canary_footer_size, alloc_id, final_tag, config_.enable_canary);
-        if (!user_ptr) {
-            std::free(raw_ptr);
-            return nullptr;
-        }
 
         AllocationRecord record;
         record.allocation_id = alloc_id;
@@ -120,19 +125,24 @@ public:
 
         AllocationRecord record;
         if (tracker_.erase(user_ptr, &record)) {
-            if (config_.enable_canary) {
-                auto* header = core::get_header_from_raw_ptr(record.raw_ptr);
-                CorruptionType status = core::verify_canary(header, config_.canary_footer_size);
+            if (config_.enable_canary && config_.canary_footer_size >= sizeof(uint64_t)) {
+                const uint8_t* footer_ptr = reinterpret_cast<const uint8_t*>(user_ptr) + record.requested_size;
+                CorruptionType status = CorruptionType::NONE;
+                for (size_t i = 0; i < config_.canary_footer_size; i += sizeof(uint64_t)) {
+                    uint64_t val = 0;
+                    size_t copy_len = (config_.canary_footer_size - i < sizeof(uint64_t)) ? (config_.canary_footer_size - i) : sizeof(uint64_t);
+                    std::memcpy(&val, footer_ptr + i, copy_len);
+                    uint64_t expected = CANARY_FOOTER_MAGIC;
+                    if (std::memcmp(&val, &expected, copy_len) != 0) {
+                        status = CorruptionType::FOOTER_CORRUPTED;
+                        break;
+                    }
+                }
                 if (status != CorruptionType::NONE) {
                     reporter::ConsoleReporter::print_corruption_alert(std::cerr, user_ptr, status);
                 }
             }
             stats_.update_on_free(record.requested_size);
-
-            auto* header = core::get_header_from_raw_ptr(record.raw_ptr);
-            if (header) {
-                header->magic = 0xBAADF00DDEADBEEFULL;
-            }
             std::free(record.raw_ptr);
         } else {
             std::free(user_ptr);
