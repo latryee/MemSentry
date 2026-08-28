@@ -1,34 +1,35 @@
 #include "memsentry/memsentry.hpp"
-#include <iostream>
-#include <vector>
+
 #include <cassert>
+#include <iostream>
 #include <string>
+#include <vector>
 
 static int g_failed_tests = 0;
 
-#define TEST_ASSERT(cond, msg) \
-    do { \
-        if (!(cond)) { \
-            std::cerr << "[-] ASSERTION FAILED: " << msg << " (" << __FILE__ << ":" << __LINE__ << ")\n" << std::flush; \
-            g_failed_tests++; \
-            return; \
-        } \
+#define TEST_ASSERT(cond, msg)                                                                                         \
+    do {                                                                                                               \
+        if (!(cond)) {                                                                                                 \
+            std::cerr << "[-] ASSERTION FAILED: " << msg << " (" << __FILE__ << ":" << __LINE__ << ")\n"               \
+                      << std::flush;                                                                                   \
+            g_failed_tests++;                                                                                          \
+            return;                                                                                                    \
+        }                                                                                                              \
     } while (0)
 
-#define RUN_TEST(fn) \
-    do { \
-        std::cout << "[RUN] " << #fn << "...\n" << std::flush; \
-        int before = g_failed_tests; \
-        fn(); \
-        if (g_failed_tests == before) { \
-            std::cout << "  [PASS] " << #fn << "\n" << std::flush; \
-        } else { \
-            std::cout << "  [FAIL] " << #fn << "\n" << std::flush; \
-        } \
+#define RUN_TEST(fn)                                                                                                   \
+    do {                                                                                                               \
+        std::cout << "[RUN] " << #fn << "...\n" << std::flush;                                                         \
+        int before = g_failed_tests;                                                                                   \
+        fn();                                                                                                          \
+        if (g_failed_tests == before) {                                                                                \
+            std::cout << "  [PASS] " << #fn << "\n" << std::flush;                                                     \
+        } else {                                                                                                       \
+            std::cout << "  [FAIL] " << #fn << "\n" << std::flush;                                                     \
+        }                                                                                                              \
     } while (0)
 
-template <typename T>
-inline void do_not_optimize(T const& value) {
+template <typename T> inline void do_not_optimize(T const& value) {
 #if defined(_MSC_VER)
     auto volatile dummy = *reinterpret_cast<const volatile char*>(&value);
     (void)dummy;

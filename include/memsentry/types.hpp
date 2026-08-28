@@ -1,12 +1,12 @@
 #pragma once
 
+#include <array>
+#include <atomic>
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <string>
 #include <vector>
-#include <array>
-#include <chrono>
-#include <atomic>
 
 namespace memsentry {
 
@@ -14,19 +14,9 @@ inline constexpr uint64_t CANARY_HEADER_MAGIC = 0xDEADBEEFCAFEBABEULL;
 inline constexpr uint64_t CANARY_FOOTER_MAGIC = 0xBAADF00D5EADC0DEULL;
 inline constexpr size_t DEFAULT_ALIGNMENT = 16;
 
-enum class ReportFormat : uint8_t {
-    CONSOLE_ANSI = 0,
-    JSON,
-    HTML
-};
+enum class ReportFormat : uint8_t { CONSOLE_ANSI = 0, JSON, HTML };
 
-enum class CorruptionType : uint8_t {
-    NONE = 0,
-    HEADER_CORRUPTED,
-    FOOTER_CORRUPTED,
-    DOUBLE_FREE,
-    UNTRACKED_POINTER
-};
+enum class CorruptionType : uint8_t { NONE = 0, HEADER_CORRUPTED, FOOTER_CORRUPTED, DOUBLE_FREE, UNTRACKED_POINTER };
 
 struct StackFrame {
     uintptr_t address = 0;
@@ -62,10 +52,12 @@ struct MemoryStats {
         total_allocated_bytes.fetch_add(bytes, std::memory_order_relaxed);
         total_allocation_count.fetch_add(1, std::memory_order_relaxed);
         active_allocation_count.fetch_add(1, std::memory_order_relaxed);
-        
+
         uint64_t current = current_allocated_bytes.fetch_add(bytes, std::memory_order_relaxed) + bytes;
         uint64_t peak = peak_allocated_bytes.load(std::memory_order_relaxed);
-        while (current > peak && !peak_allocated_bytes.compare_exchange_weak(peak, current, std::memory_order_relaxed)) {}
+        while (current > peak &&
+               !peak_allocated_bytes.compare_exchange_weak(peak, current, std::memory_order_relaxed)) {
+        }
     }
 
     void update_on_free(size_t bytes) noexcept {
@@ -86,16 +78,14 @@ struct MemoryStatsSnapshot {
     uint64_t active_allocation_count = 0;
 
     static MemoryStatsSnapshot from(const MemoryStats& stats) noexcept {
-        return {
-            stats.total_allocated_bytes.load(std::memory_order_relaxed),
-            stats.total_freed_bytes.load(std::memory_order_relaxed),
-            stats.current_allocated_bytes.load(std::memory_order_relaxed),
-            stats.peak_allocated_bytes.load(std::memory_order_relaxed),
-            stats.total_allocation_count.load(std::memory_order_relaxed),
-            stats.total_free_count.load(std::memory_order_relaxed),
-            stats.active_allocation_count.load(std::memory_order_relaxed)
-        };
+        return {stats.total_allocated_bytes.load(std::memory_order_relaxed),
+                stats.total_freed_bytes.load(std::memory_order_relaxed),
+                stats.current_allocated_bytes.load(std::memory_order_relaxed),
+                stats.peak_allocated_bytes.load(std::memory_order_relaxed),
+                stats.total_allocation_count.load(std::memory_order_relaxed),
+                stats.total_free_count.load(std::memory_order_relaxed),
+                stats.active_allocation_count.load(std::memory_order_relaxed)};
     }
 };
 
-}
+}  // namespace memsentry

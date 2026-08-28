@@ -1,37 +1,38 @@
 #include "memsentry/memsentry.hpp"
+
+#include <atomic>
+#include <cassert>
 #include <iostream>
 #include <vector>
-#include <cassert>
-#include <atomic>
 
 static int g_failed_tests = 0;
 static std::atomic<int> g_watchdog_trigger_count{0};
 static std::atomic<uint64_t> g_last_current_bytes{0};
 static std::atomic<uint64_t> g_last_limit_bytes{0};
 
-#define TEST_ASSERT(cond, msg) \
-    do { \
-        if (!(cond)) { \
-            std::cerr << "[-] ASSERTION FAILED: " << msg << " (" << __FILE__ << ":" << __LINE__ << ")\n" << std::flush; \
-            g_failed_tests++; \
-            return; \
-        } \
+#define TEST_ASSERT(cond, msg)                                                                                         \
+    do {                                                                                                               \
+        if (!(cond)) {                                                                                                 \
+            std::cerr << "[-] ASSERTION FAILED: " << msg << " (" << __FILE__ << ":" << __LINE__ << ")\n"               \
+                      << std::flush;                                                                                   \
+            g_failed_tests++;                                                                                          \
+            return;                                                                                                    \
+        }                                                                                                              \
     } while (0)
 
-#define RUN_TEST(fn) \
-    do { \
-        std::cout << "[RUN] " << #fn << "...\n" << std::flush; \
-        int before = g_failed_tests; \
-        fn(); \
-        if (g_failed_tests == before) { \
-            std::cout << "  [PASS] " << #fn << "\n" << std::flush; \
-        } else { \
-            std::cout << "  [FAIL] " << #fn << "\n" << std::flush; \
-        } \
+#define RUN_TEST(fn)                                                                                                   \
+    do {                                                                                                               \
+        std::cout << "[RUN] " << #fn << "...\n" << std::flush;                                                         \
+        int before = g_failed_tests;                                                                                   \
+        fn();                                                                                                          \
+        if (g_failed_tests == before) {                                                                                \
+            std::cout << "  [PASS] " << #fn << "\n" << std::flush;                                                     \
+        } else {                                                                                                       \
+            std::cout << "  [FAIL] " << #fn << "\n" << std::flush;                                                     \
+        }                                                                                                              \
     } while (0)
 
-template <typename T>
-inline void do_not_optimize(T const& value) {
+template <typename T> inline void do_not_optimize(T const& value) {
 #if defined(_MSC_VER)
     auto volatile dummy = *reinterpret_cast<const volatile char*>(&value);
     (void)dummy;
@@ -56,7 +57,7 @@ void test_watchdog_trigger() {
     g_last_current_bytes = 0;
     g_last_limit_bytes = 0;
 
-    constexpr uint64_t LIMIT_BYTES = 10000; // 10 KB threshold
+    constexpr uint64_t LIMIT_BYTES = 10000;  // 10 KB threshold
 
     memsentry::Config config;
     config.enable_stacktrace = false;

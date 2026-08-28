@@ -1,9 +1,10 @@
 #pragma once
 
+#include "memsentry/types.hpp"
+
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
-#include "memsentry/types.hpp"
 
 namespace memsentry::core {
 
@@ -19,12 +20,14 @@ struct BlockHeader {
 };
 
 inline size_t align_up(size_t value, size_t alignment) noexcept {
-    if (alignment == 0) return value;
+    if (alignment == 0)
+        return value;
     return (value + (alignment - 1)) & ~(alignment - 1);
 }
 
 inline size_t calculate_total_size(size_t requested_size, size_t alignment, size_t footer_size) noexcept {
-    if (alignment == 0) alignment = DEFAULT_ALIGNMENT;
+    if (alignment == 0)
+        alignment = DEFAULT_ALIGNMENT;
     size_t max_offset = sizeof(BlockHeader) + alignment;
     if (requested_size > SIZE_MAX - max_offset - footer_size) {
         return 0;
@@ -34,9 +37,11 @@ inline size_t calculate_total_size(size_t requested_size, size_t alignment, size
 
 inline void* init_block(void* raw_memory, size_t requested_size, size_t alignment, size_t footer_size,
                         uint64_t alloc_id, const char* tag, bool enable_canary) noexcept {
-    if (!raw_memory) return nullptr;
+    if (!raw_memory)
+        return nullptr;
 
-    if (alignment == 0) alignment = DEFAULT_ALIGNMENT;
+    if (alignment == 0)
+        alignment = DEFAULT_ALIGNMENT;
 
     uintptr_t raw_addr = reinterpret_cast<uintptr_t>(raw_memory);
     uintptr_t header_end = raw_addr + sizeof(BlockHeader);
@@ -72,8 +77,10 @@ inline BlockHeader* get_header_from_raw_ptr(void* raw_ptr) noexcept {
 }
 
 inline BlockHeader* get_header_from_user_ptr(const void* user_ptr, size_t alignment = DEFAULT_ALIGNMENT) noexcept {
-    if (!user_ptr) return nullptr;
-    if (alignment == 0) alignment = DEFAULT_ALIGNMENT;
+    if (!user_ptr)
+        return nullptr;
+    if (alignment == 0)
+        alignment = DEFAULT_ALIGNMENT;
     uintptr_t user_addr = reinterpret_cast<uintptr_t>(user_ptr);
     size_t min_offset = sizeof(BlockHeader);
     uintptr_t candidate_addr = user_addr - align_up(min_offset, alignment);
@@ -85,7 +92,8 @@ inline BlockHeader* get_header_from_user_ptr(const void* user_ptr, size_t alignm
 }
 
 inline CorruptionType verify_canary(const BlockHeader* header, size_t footer_size) noexcept {
-    if (!header) return CorruptionType::UNTRACKED_POINTER;
+    if (!header)
+        return CorruptionType::UNTRACKED_POINTER;
     if (header->magic != CANARY_HEADER_MAGIC) {
         return CorruptionType::HEADER_CORRUPTED;
     }
@@ -107,4 +115,4 @@ inline CorruptionType verify_canary(const BlockHeader* header, size_t footer_siz
     return CorruptionType::NONE;
 }
 
-}
+}  // namespace memsentry::core

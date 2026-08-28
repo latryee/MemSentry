@@ -1,9 +1,10 @@
 #pragma once
 
+#include "memsentry/profiler/snapshot.hpp"
+#include "memsentry/types.hpp"
+
 #include <iostream>
 #include <vector>
-#include "memsentry/types.hpp"
-#include "memsentry/profiler/snapshot.hpp"
 
 namespace memsentry::reporter {
 
@@ -15,4 +16,4 @@ public:
     static void print_corruption_alert(std::ostream& os, const void* ptr, CorruptionType type);
 };
 
-}
+}  // namespace memsentry::reporter

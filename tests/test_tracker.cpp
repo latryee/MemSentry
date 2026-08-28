@@ -1,12 +1,12 @@
-#include "memsentry/memsentry.hpp"
 #include "memsentry/core/allocator_hooks.hpp"
+#include "memsentry/memsentry.hpp"
+
+#include <cstddef>
+#include <iostream>
 #include <thread>
 #include <vector>
-#include <iostream>
-#include <cstddef>
 
-template <typename T>
-inline void do_not_optimize(T const& value) {
+template <typename T> inline void do_not_optimize(T const& value) {
 #if defined(_MSC_VER)
     auto volatile dummy = *reinterpret_cast<const volatile char*>(&value);
     (void)dummy;
@@ -43,7 +43,8 @@ int main() {
     memsentry::init(config);
 
     void* initial = memsentry::core::track_alloc(64);
-    if (!initial) return 1;
+    if (!initial)
+        return 1;
     memsentry::core::track_free(initial);
 
     constexpr int NUM_THREADS = 4;
@@ -65,7 +66,8 @@ int main() {
     }
 
     auto final_stats = memsentry::get_stats();
-    if (final_stats.total_allocation_count < baseline_stats.total_allocation_count + (NUM_THREADS * ITERATIONS_PER_THREAD)) {
+    if (final_stats.total_allocation_count <
+        baseline_stats.total_allocation_count + (NUM_THREADS * ITERATIONS_PER_THREAD)) {
         std::cerr << "[FAIL] Allocation count mismatch\n" << std::flush;
         return 1;
     }

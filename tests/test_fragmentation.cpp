@@ -1,34 +1,35 @@
 #include "memsentry/memsentry.hpp"
-#include <iostream>
-#include <vector>
+
 #include <cassert>
 #include <cmath>
+#include <iostream>
+#include <vector>
 
 static int g_failed_tests = 0;
 
-#define TEST_ASSERT(cond, msg) \
-    do { \
-        if (!(cond)) { \
-            std::cerr << "[-] ASSERTION FAILED: " << msg << " (" << __FILE__ << ":" << __LINE__ << ")\n" << std::flush; \
-            g_failed_tests++; \
-            return; \
-        } \
+#define TEST_ASSERT(cond, msg)                                                                                         \
+    do {                                                                                                               \
+        if (!(cond)) {                                                                                                 \
+            std::cerr << "[-] ASSERTION FAILED: " << msg << " (" << __FILE__ << ":" << __LINE__ << ")\n"               \
+                      << std::flush;                                                                                   \
+            g_failed_tests++;                                                                                          \
+            return;                                                                                                    \
+        }                                                                                                              \
     } while (0)
 
-#define RUN_TEST(fn) \
-    do { \
-        std::cout << "[RUN] " << #fn << "...\n" << std::flush; \
-        int before = g_failed_tests; \
-        fn(); \
-        if (g_failed_tests == before) { \
-            std::cout << "  [PASS] " << #fn << "\n" << std::flush; \
-        } else { \
-            std::cout << "  [FAIL] " << #fn << "\n" << std::flush; \
-        } \
+#define RUN_TEST(fn)                                                                                                   \
+    do {                                                                                                               \
+        std::cout << "[RUN] " << #fn << "...\n" << std::flush;                                                         \
+        int before = g_failed_tests;                                                                                   \
+        fn();                                                                                                          \
+        if (g_failed_tests == before) {                                                                                \
+            std::cout << "  [PASS] " << #fn << "\n" << std::flush;                                                     \
+        } else {                                                                                                       \
+            std::cout << "  [FAIL] " << #fn << "\n" << std::flush;                                                     \
+        }                                                                                                              \
     } while (0)
 
-template <typename T>
-inline void do_not_optimize(T const& value) {
+template <typename T> inline void do_not_optimize(T const& value) {
 #if defined(_MSC_VER)
     auto volatile dummy = *reinterpret_cast<const volatile char*>(&value);
     (void)dummy;
@@ -41,11 +42,11 @@ void test_free_block_histogram() {
     std::vector<void*> ptrs;
 
     // Allocate varied sizes
-    ptrs.push_back(new char[8]);      // Bucket: [1 - 16 B]
-    ptrs.push_back(new char[32]);     // Bucket: [17 - 64 B]
-    ptrs.push_back(new char[128]);    // Bucket: [65 - 256 B]
-    ptrs.push_back(new char[512]);    // Bucket: [257 B - 1 KB]
-    ptrs.push_back(new char[2048]);   // Bucket: [1 KB - 4 KB]
+    ptrs.push_back(new char[8]);     // Bucket: [1 - 16 B]
+    ptrs.push_back(new char[32]);    // Bucket: [17 - 64 B]
+    ptrs.push_back(new char[128]);   // Bucket: [65 - 256 B]
+    ptrs.push_back(new char[512]);   // Bucket: [257 B - 1 KB]
+    ptrs.push_back(new char[2048]);  // Bucket: [1 KB - 4 KB]
 
     // Free 3 blocks
     delete[] reinterpret_cast<char*>(ptrs[0]);
@@ -75,7 +76,7 @@ void test_fragmentation_ratio_calculation() {
     // Allocate high watermark
     std::vector<void*> temp_ptrs;
     for (int i = 0; i < 20; ++i) {
-        temp_ptrs.push_back(new char[1024 * 10]); // 10 KB each
+        temp_ptrs.push_back(new char[1024 * 10]);  // 10 KB each
     }
 
     // Free 80% of allocations to induce fragmentation

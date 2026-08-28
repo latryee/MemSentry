@@ -1,9 +1,10 @@
 #pragma once
 
+#include "memsentry/types.hpp"
+
 #include <cstddef>
 #include <cstdint>
 #include <string>
-#include "memsentry/types.hpp"
 
 namespace memsentry {
 
@@ -29,4 +30,4 @@ struct Config {
     void (*on_limit_exceeded)(uint64_t current_bytes, uint64_t limit_bytes){nullptr};
 };
 
-}
+}  // namespace memsentry

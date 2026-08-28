@@ -1,10 +1,11 @@
 #pragma once
 
-#include <string>
-#include <vector>
-#include <chrono>
-#include <unordered_map>
 #include "memsentry/types.hpp"
+
+#include <chrono>
+#include <string>
+#include <unordered_map>
+#include <vector>
 
 namespace memsentry::profiler {
 
@@ -39,4 +40,4 @@ struct SnapshotDiff {
 
 SnapshotDiff compare_snapshots(const HeapSnapshot& before, const HeapSnapshot& after);
 
-}
+}  // namespace memsentry::profiler

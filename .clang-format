@@ -14,7 +14,7 @@ AccessModifierOffset: -4
 BreakBeforeBraces: Attach
 AllowShortFunctionsOnASingleLine: Inline
 AllowShortIfStatementsOnASingleLine: Never
-AllowShortLoopsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
 BreakBeforeBinaryOperators: None
 BreakBeforeTernaryOperators: true
 
@@ -26,13 +26,5 @@ SpaceAfterCStyleCast: false
 SpaceBeforeParens: ControlStatements
 
 # Includes
-SortIncludes: CaseSensitive
-IncludeBlocks: Regroup
-IncludeCategories:
-  - Regex: '^"memsentry/'
-    Priority: 1
-  - Regex: '^<[a-z_0-9]+>'
-    Priority: 2
-  - Regex: '.*'
-    Priority: 3
+SortIncludes: Never
 ...

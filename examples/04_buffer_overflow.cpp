@@ -1,4 +1,5 @@
 #include "memsentry/memsentry.hpp"
+
 #include <cstring>
 
 int main() {
@@ -7,7 +8,7 @@ int main() {
     memsentry::init(config);
 
     char* buffer = new char[16];
-    
+
     std::memset(buffer + 16, 0xFF, 4);
 
     delete[] buffer;

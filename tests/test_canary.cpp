@@ -1,7 +1,8 @@
 #include "memsentry/core/header.hpp"
-#include <iostream>
-#include <cstdint>
+
 #include <cstddef>
+#include <cstdint>
+#include <iostream>
 
 int main() {
     using namespace memsentry::core;
@@ -13,7 +14,8 @@ int main() {
     alignas(16) uint8_t memory[512] = {0};
 
     void* user_ptr = init_block(memory, REQ_SIZE, ALIGN, FOOTER_SIZE, 1, "UnitTest", true);
-    if (!user_ptr) return 1;
+    if (!user_ptr)
+        return 1;
 
     auto* header = get_header_from_raw_ptr(memory);
     if (!header || header->magic != memsentry::CANARY_HEADER_MAGIC || header->requested_size != REQ_SIZE) {
@@ -47,7 +49,8 @@ int main() {
         alignas(128) uint8_t over_memory[1024] = {0};
 
         void* over_user_ptr = init_block(over_memory, OVER_REQ_SIZE, OVER_ALIGN, FOOTER_SIZE, 2, "OverAligned", true);
-        if (!over_user_ptr) return 1;
+        if (!over_user_ptr)
+            return 1;
 
         uintptr_t user_addr = reinterpret_cast<uintptr_t>(over_user_ptr);
         if ((user_addr % OVER_ALIGN) != 0) {

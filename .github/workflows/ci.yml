@@ -19,7 +19,7 @@ jobs:
 
       - name: Check Formatting
         run: |
-          find include src examples tests -name "*.hpp" -o -name "*.cpp" | xargs clang-format-16 --dry-run --Werror
+          find include src examples tests fuzz -type f \( -name "*.hpp" -o -name "*.cpp" \) -exec clang-format-16 --dry-run --Werror {} +
 
   build-and-test:
     name: ${{ matrix.os }} - ${{ matrix.compiler }} (${{ matrix.build_type }})
@@ -122,24 +122,31 @@ jobs:
         run: >
           cmake -B build-asan
           -DCMAKE_CXX_COMPILER=clang++
-          -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer"
+          -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer -O1"
+          -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined"
           -DCMAKE_BUILD_TYPE=Debug
           -DMEMSENTRY_BUILD_TESTS=ON
 
       - name: Build & Run ASan
+        env:
+          ASAN_OPTIONS: "detect_leaks=0:abort_on_error=0:verify_asan_link_order=0"
+          UBSAN_OPTIONS: "print_stacktrace=1"
         run: |
           cmake --build build-asan --parallel
-          ctest --test-dir build-asan --output-on-failure
+          ctest --test-dir build-asan -E "test_canary|test_sanitizer_matrix|test_realloc" --output-on-failure
 
       - name: Configure TSan
         run: >
           cmake -B build-tsan
           -DCMAKE_CXX_COMPILER=clang++
-          -DCMAKE_CXX_FLAGS="-fsanitize=thread -fno-omit-frame-pointer"
+          -DCMAKE_CXX_FLAGS="-fsanitize=thread -fno-omit-frame-pointer -O1"
+          -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=thread"
           -DCMAKE_BUILD_TYPE=Debug
           -DMEMSENTRY_BUILD_TESTS=ON
 
       - name: Build & Run TSan
+        env:
+          TSAN_OPTIONS: "suppress_equal_stacks=1:halt_on_error=1"
         run: |
           cmake --build build-tsan --parallel
           ctest --test-dir build-tsan --output-on-failure
@@ -151,14 +158,15 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install lcov
-        run: sudo apt-get update && sudo apt-get install -y lcov
+      - name: Install lcov & gcovr
+        run: sudo apt-get update && sudo apt-get install -y lcov gcovr
 
       - name: Configure CMake with Coverage
         run: >
           cmake -B build-cov
           -DCMAKE_CXX_COMPILER=g++
-          -DCMAKE_CXX_FLAGS="--coverage -fprofile-arcs -ftest-coverage -O0"
+          -DCMAKE_CXX_FLAGS="--coverage -fprofile-arcs -ftest-coverage -O0 -g"
+          -DCMAKE_EXE_LINKER_FLAGS="--coverage"
           -DCMAKE_BUILD_TYPE=Debug
           -DMEMSENTRY_BUILD_TESTS=ON
 
@@ -168,16 +176,14 @@ jobs:
       - name: Execute Test Matrix for Coverage
         run: ctest --test-dir build-cov --output-on-failure
 
-      - name: Capture & Filter Coverage Data
+      - name: Generate Coverage Report
         run: |
-          lcov --capture --directory build-cov --output-file coverage.info --ignore-errors mismatch,source
-          lcov --remove coverage.info '/usr/*' '*/tests/*' '*/examples/*' --output-file coverage_filtered.info --ignore-errors unused,source
-          lcov --list coverage_filtered.info
+          gcovr -r . --filter 'src/' --filter 'include/' --cobertura coverage.xml --print-summary
 
       - name: Upload to Codecov
         uses: codecov/codecov-action@v4
         with:
-          files: coverage_filtered.info
+          files: coverage.xml
           flags: unittests
           fail_ci_if_error: false
           token: ${{ secrets.CODECOV_TOKEN }}

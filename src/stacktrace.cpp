@@ -1,11 +1,13 @@
 #include "memsentry/stacktrace/stacktrace.hpp"
+
 #include "memsentry/core/recursion_guard.hpp"
+
 #include <atomic>
+#include <iomanip>
 #include <mutex>
+#include <sstream>
 #include <thread>
 #include <unordered_map>
-#include <sstream>
-#include <iomanip>
 
 #if defined(_WIN32)
 #define WIN32_LEAN_AND_MEAN
@@ -17,10 +19,11 @@
 #pragma comment(lib, "dbghelp.lib")
 #endif
 #elif defined(__linux__) || defined(__APPLE__)
-#include <execinfo.h>
+#include <cstdlib>
+
 #include <cxxabi.h>
 #include <dlfcn.h>
-#include <cstdlib>
+#include <execinfo.h>
 #endif
 
 namespace memsentry::stacktrace {
@@ -47,7 +50,8 @@ void StackTraceProvider::initialize() {
 void StackTraceProvider::cleanup() {
     core::RecursionGuard guard;
     std::lock_guard<std::mutex> lock(symbol_mutex_);
-    if (!initialized_) return;
+    if (!initialized_)
+        return;
 
 #if defined(_WIN32)
     SymCleanup(GetCurrentProcess());
@@ -58,38 +62,32 @@ void StackTraceProvider::cleanup() {
 }
 
 uint16_t StackTraceProvider::capture(void** out_frames, uint32_t max_depth, uint32_t skip_frames) noexcept {
-    if (!out_frames || max_depth == 0) return 0;
+    if (!out_frames || max_depth == 0)
+        return 0;
 
 #if defined(_WIN32)
 #if defined(_MSC_VER)
     __try {
-        USHORT captured = CaptureStackBackTrace(
-            static_cast<ULONG>(skip_frames),
-            static_cast<ULONG>(max_depth),
-            out_frames,
-            nullptr
-        );
+        USHORT captured =
+            CaptureStackBackTrace(static_cast<ULONG>(skip_frames), static_cast<ULONG>(max_depth), out_frames, nullptr);
         return static_cast<uint16_t>(captured);
-    }
-    __except (EXCEPTION_EXECUTE_HANDLER) {
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
         return 0;
     }
 #else
-    USHORT captured = CaptureStackBackTrace(
-        static_cast<ULONG>(skip_frames),
-        static_cast<ULONG>(max_depth),
-        out_frames,
-        nullptr
-    );
+    USHORT captured =
+        CaptureStackBackTrace(static_cast<ULONG>(skip_frames), static_cast<ULONG>(max_depth), out_frames, nullptr);
     return static_cast<uint16_t>(captured);
 #endif
 #elif defined(__linux__) || defined(__APPLE__)
     constexpr int MAX_CAPTURE = 64;
     int depth = static_cast<int>(max_depth + skip_frames);
-    if (depth > MAX_CAPTURE) depth = MAX_CAPTURE;
+    if (depth > MAX_CAPTURE)
+        depth = MAX_CAPTURE;
     void* buffer[MAX_CAPTURE];
     int count = backtrace(buffer, depth);
-    if (count <= static_cast<int>(skip_frames)) return 0;
+    if (count <= static_cast<int>(skip_frames))
+        return 0;
 
     uint16_t captured = 0;
     for (int i = static_cast<int>(skip_frames); i < count && captured < max_depth; ++i) {
@@ -172,10 +170,11 @@ std::vector<StackFrame> StackTraceProvider::resolve(const void* const* frames, u
     std::vector<StackFrame> resolved;
     resolved.reserve(count);
     for (uint16_t i = 0; i < count; ++i) {
-        if (!frames[i]) continue;
+        if (!frames[i])
+            continue;
         resolved.push_back(resolve_frame(reinterpret_cast<uintptr_t>(frames[i])));
     }
     return resolved;
 }
 
-}
+}  // namespace memsentry::stacktrace

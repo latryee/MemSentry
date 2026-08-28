@@ -1,13 +1,14 @@
 ﻿#include "memsentry/memsentry.hpp"
-#include <iostream>
-#include <vector>
-#include <thread>
+
 #include <chrono>
+#include <iostream>
+#include <thread>
+#include <vector>
 
 void simulate_asset_pipeline() {
     MEMSENTRY_SCOPE_TAG("AssetManager");
     // Allocate texture buffer (intentional persistent leak for demonstration)
-    char* texture_cache = new char[1024 * 1024]; // 1.00 MB
+    char* texture_cache = new char[1024 * 1024];  // 1.00 MB
     (void)texture_cache;
 }
 

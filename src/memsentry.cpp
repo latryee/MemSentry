@@ -1,14 +1,16 @@
 #include "memsentry/memsentry.hpp"
-#include "memsentry/core/recursion_guard.hpp"
-#include "memsentry/core/header.hpp"
-#include "memsentry/core/sharded_tracker.hpp"
+
 #include "memsentry/core/allocator_hooks.hpp"
+#include "memsentry/core/header.hpp"
+#include "memsentry/core/recursion_guard.hpp"
+#include "memsentry/core/sharded_tracker.hpp"
 #include "memsentry/core/suppression_engine.hpp"
 #include "memsentry/stacktrace/stacktrace.hpp"
-#include <cstdlib>
+
 #include <atomic>
-#include <thread>
+#include <cstdlib>
 #include <iostream>
+#include <thread>
 
 #if defined(_WIN32)
 #define WIN32_LEAN_AND_MEAN
@@ -37,12 +39,9 @@ static LONG WINAPI MemsentryCrashHandler(PEXCEPTION_POINTERS pExceptionInfo) {
     uintptr_t* stack = reinterpret_cast<uintptr_t*>(pCtx->Rsp);
 
     char msg[512];
-    int mlen = snprintf(msg, sizeof(msg),
-        "\n[FATAL CRASH] ExceptionCode=0x%08lX RIP=0x%p RSP=0x%p\nSTACK DUMP:\n",
-        static_cast<unsigned long>(code),
-        reinterpret_cast<void*>(pCtx->Rip),
-        reinterpret_cast<void*>(pCtx->Rsp)
-    );
+    int mlen = snprintf(msg, sizeof(msg), "\n[FATAL CRASH] ExceptionCode=0x%08lX RIP=0x%p RSP=0x%p\nSTACK DUMP:\n",
+                        static_cast<unsigned long>(code), reinterpret_cast<void*>(pCtx->Rip),
+                        reinterpret_cast<void*>(pCtx->Rsp));
     DWORD wr = 0;
     WriteFile(hErr, msg, static_cast<DWORD>(mlen), &wr, nullptr);
 
@@ -57,12 +56,10 @@ static LONG WINAPI MemsentryCrashHandler(PEXCEPTION_POINTERS pExceptionInfo) {
 
 namespace {
 struct CrashHandlerInstaller {
-    CrashHandlerInstaller() {
-        AddVectoredExceptionHandler(1, MemsentryCrashHandler);
-    }
+    CrashHandlerInstaller() { AddVectoredExceptionHandler(1, MemsentryCrashHandler); }
 };
 static CrashHandlerInstaller g_crash_installer;
-}
+}  // namespace
 #elif defined(__linux__)
 #include <unistd.h>
 #if defined(__has_include)
@@ -83,7 +80,7 @@ __declspec(thread) int g_recursion_depth = 0;
 #else
 thread_local int g_recursion_depth = 0;
 #endif
-}
+}  // namespace memsentry::core
 
 namespace memsentry::profiler {
 #if defined(_MSC_VER)
@@ -91,7 +88,7 @@ __declspec(thread) const char* g_active_scope_tag = nullptr;
 #else
 thread_local const char* g_active_scope_tag = nullptr;
 #endif
-}
+}  // namespace memsentry::profiler
 
 namespace memsentry {
 
@@ -110,7 +107,8 @@ public:
         _CrtSetReportFile(_CRT_ASSERT, _CRTDBG_FILE_STDERR);
 #endif
         config_ = config;
-        if (initialized_.exchange(true)) return;
+        if (initialized_.exchange(true))
+            return;
 
         volatile int anchor = core::ensure_hooks_linked();
         (void)anchor;
@@ -118,21 +116,18 @@ public:
         stacktrace::StackTraceProvider::instance().initialize();
 
         if (config_.auto_report_on_exit) {
-            std::atexit([]() {
-                Manager::instance().on_exit();
-            });
+            std::atexit([]() { Manager::instance().on_exit(); });
         }
     }
 
     void shutdown() {
-        if (!initialized_.exchange(false)) return;
+        if (!initialized_.exchange(false))
+            return;
         core::RecursionGuard guard;
         stacktrace::StackTraceProvider::instance().cleanup();
     }
 
-    [[nodiscard]] bool is_initialized() const noexcept {
-        return initialized_.load(std::memory_order_relaxed);
-    }
+    [[nodiscard]] bool is_initialized() const noexcept { return initialized_.load(std::memory_order_relaxed); }
 
     void* allocate(size_t size, size_t alignment, const char* tag) noexcept {
         if (core::RecursionGuard::is_active() || !initialized_.load(std::memory_order_relaxed)) {
@@ -158,10 +153,12 @@ public:
         size_t align = (alignment > DEFAULT_ALIGNMENT) ? alignment : DEFAULT_ALIGNMENT;
         size_t extra_align = (align > DEFAULT_ALIGNMENT) ? align : 0;
         size_t total_size = size + footer_size + extra_align;
-        if (total_size < size) return nullptr;
+        if (total_size < size)
+            return nullptr;
 
         void* raw_ptr = core::raw_system_alloc(total_size);
-        if (!raw_ptr) return nullptr;
+        if (!raw_ptr)
+            return nullptr;
 
         void* user_ptr = raw_ptr;
         if (extra_align > 0) {
@@ -194,11 +191,8 @@ public:
 
         if (config_.enable_stacktrace) {
             uint32_t depth = std::min(config_.max_stack_depth, static_cast<uint32_t>(record.callstack.size()));
-            record.frame_count = stacktrace::StackTraceProvider::instance().capture(
-                record.callstack.data(),
-                depth,
-                config_.stack_skip_frames
-            );
+            record.frame_count = stacktrace::StackTraceProvider::instance().capture(record.callstack.data(), depth,
+                                                                                    config_.stack_skip_frames);
         }
 
         stats_.update_on_alloc(size);
@@ -216,7 +210,8 @@ public:
     }
 
     void deallocate(void* user_ptr) noexcept {
-        if (!user_ptr) return;
+        if (!user_ptr)
+            return;
 
         if (core::RecursionGuard::is_active() || !initialized_.load(std::memory_order_relaxed)) {
             core::raw_system_free(user_ptr);
@@ -233,7 +228,9 @@ public:
                 CorruptionType cstatus = CorruptionType::NONE;
                 for (size_t i = 0; i < config_.canary_footer_size; i += sizeof(uint64_t)) {
                     uint64_t val = 0;
-                    size_t copy_len = (config_.canary_footer_size - i < sizeof(uint64_t)) ? (config_.canary_footer_size - i) : sizeof(uint64_t);
+                    size_t copy_len = (config_.canary_footer_size - i < sizeof(uint64_t))
+                                          ? (config_.canary_footer_size - i)
+                                          : sizeof(uint64_t);
                     std::memcpy(&val, footer_ptr + i, copy_len);
                     uint64_t expected = CANARY_FOOTER_MAGIC;
                     if (std::memcmp(&val, &expected, copy_len) != 0) {
@@ -256,7 +253,8 @@ public:
     }
 
     void* reallocate(void* ptr, size_t new_size) noexcept {
-        if (!ptr) return allocate(new_size, config_.alignment, nullptr);
+        if (!ptr)
+            return allocate(new_size, config_.alignment, nullptr);
         if (new_size == 0) {
             deallocate(ptr);
             return nullptr;
@@ -276,7 +274,8 @@ public:
             CorruptionType cstatus = CorruptionType::NONE;
             for (size_t i = 0; i < config_.canary_footer_size; i += sizeof(uint64_t)) {
                 uint64_t val = 0;
-                size_t copy_len = (config_.canary_footer_size - i < sizeof(uint64_t)) ? (config_.canary_footer_size - i) : sizeof(uint64_t);
+                size_t copy_len = (config_.canary_footer_size - i < sizeof(uint64_t)) ? (config_.canary_footer_size - i)
+                                                                                      : sizeof(uint64_t);
                 std::memcpy(&val, footer_ptr + i, copy_len);
                 uint64_t expected = CANARY_FOOTER_MAGIC;
                 if (std::memcmp(&val, &expected, copy_len) != 0) {
@@ -290,7 +289,8 @@ public:
         }
 
         void* new_ptr = allocate(new_size, old_record.alignment, old_record.tag);
-        if (!new_ptr) return nullptr;
+        if (!new_ptr)
+            return nullptr;
 
         size_t copy_bytes = (old_record.requested_size < new_size) ? old_record.requested_size : new_size;
         std::memcpy(new_ptr, ptr, copy_bytes);
@@ -298,18 +298,14 @@ public:
         return new_ptr;
     }
 
-    [[nodiscard]] MemoryStatsSnapshot get_stats() const noexcept {
-        return MemoryStatsSnapshot::from(stats_);
-    }
+    [[nodiscard]] MemoryStatsSnapshot get_stats() const noexcept { return MemoryStatsSnapshot::from(stats_); }
 
     [[nodiscard]] std::vector<AllocationRecord> get_active_allocations() const {
         core::RecursionGuard guard;
         return tracker_.snapshot_all();
     }
 
-    [[nodiscard]] bool has_leaks() const noexcept {
-        return tracker_.size() > 0;
-    }
+    [[nodiscard]] bool has_leaks() const noexcept { return tracker_.size() > 0; }
 
     [[nodiscard]] bool has_unsuppressed_leaks() const noexcept {
         core::RecursionGuard guard;
@@ -346,7 +342,8 @@ public:
             }
         }
         size_t leak_bytes = 0;
-        for (const auto& l : unsuppressed) leak_bytes += l.requested_size;
+        for (const auto& l : unsuppressed)
+            leak_bytes += l.requested_size;
         reporter::ConsoleReporter::print_summary(os, stats, unsuppressed.size(), leak_bytes);
         reporter::ConsoleReporter::print_leaks(os, unsuppressed);
     }
@@ -395,14 +392,14 @@ public:
     }
 
 private:
-    Manager() {
-        core::RecursionGuard guard;
-    }
+    Manager() { core::RecursionGuard guard; }
     ~Manager() = default;
 
     void on_exit() {
-        if (!initialized_.load(std::memory_order_relaxed)) return;
-        if (!config_.auto_report_on_exit) return;
+        if (!initialized_.load(std::memory_order_relaxed))
+            return;
+        if (!config_.auto_report_on_exit)
+            return;
         dump_leaks(std::cout);
         if (config_.exit_with_code_on_leak && has_unsuppressed_leaks()) {
             std::exit(1);
@@ -500,7 +497,7 @@ profiler::FragmentationReport get_fragmentation_report() {
     return Manager::instance().get_fragmentation_report();
 }
 
-}
+}  // namespace memsentry
 
 namespace memsentry::core {
 
@@ -512,7 +509,8 @@ void* track_alloc(size_t size, size_t alignment, const char* tag) noexcept {
 }
 
 void track_free(void* ptr) noexcept {
-    if (!ptr) return;
+    if (!ptr)
+        return;
     if (core::RecursionGuard::is_active() || !Manager::instance().is_initialized()) {
         std::free(ptr);
         return;
@@ -527,4 +525,4 @@ void* track_realloc(void* ptr, size_t new_size) noexcept {
     return Manager::instance().reallocate(ptr, new_size);
 }
 
-}
+}  // namespace memsentry::core

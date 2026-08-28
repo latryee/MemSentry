@@ -1,6 +1,7 @@
 #include "memsentry/profiler/snapshot.hpp"
-#include <unordered_set>
+
 #include <unordered_map>
+#include <unordered_set>
 
 namespace memsentry::profiler {
 
@@ -42,4 +43,4 @@ SnapshotDiff compare_snapshots(const HeapSnapshot& before, const HeapSnapshot& a
     return diff;
 }
 
-}
+}  // namespace memsentry::profiler

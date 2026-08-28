@@ -1,23 +1,20 @@
 #pragma once
 
+#include "memsentry/types.hpp"
+
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <mutex>
 #include <unordered_map>
 #include <vector>
-#include <array>
-#include "memsentry/types.hpp"
 
 namespace memsentry::core {
 
 inline constexpr size_t SHARD_COUNT = 64;
 static_assert((SHARD_COUNT & (SHARD_COUNT - 1)) == 0, "SHARD_COUNT must be a power of 2");
 
-enum class TrackerEraseStatus : uint8_t {
-    SUCCESS = 0,
-    NOT_FOUND,
-    DOUBLE_FREE_DETECTED
-};
+enum class TrackerEraseStatus : uint8_t { SUCCESS = 0, NOT_FOUND, DOUBLE_FREE_DETECTED };
 
 class ShardedTracker {
 public:
@@ -28,14 +25,16 @@ public:
     ShardedTracker& operator=(const ShardedTracker&) = delete;
 
     void insert(const void* user_ptr, AllocationRecord record) {
-        if (!user_ptr) return;
+        if (!user_ptr)
+            return;
         size_t idx = get_shard_index(user_ptr);
         std::lock_guard<std::mutex> lock(shards_[idx].mtx);
         shards_[idx].records[user_ptr] = std::move(record);
     }
 
     TrackerEraseStatus erase(const void* user_ptr, AllocationRecord* out_record = nullptr) {
-        if (!user_ptr) return TrackerEraseStatus::NOT_FOUND;
+        if (!user_ptr)
+            return TrackerEraseStatus::NOT_FOUND;
         size_t idx = get_shard_index(user_ptr);
         std::lock_guard<std::mutex> lock(shards_[idx].mtx);
         auto it = shards_[idx].records.find(user_ptr);
@@ -58,7 +57,8 @@ public:
     }
 
     bool find(const void* user_ptr, AllocationRecord* out_record = nullptr) const {
-        if (!user_ptr) return false;
+        if (!user_ptr)
+            return false;
         size_t idx = get_shard_index(user_ptr);
         std::lock_guard<std::mutex> lock(shards_[idx].mtx);
         auto it = shards_[idx].records.find(user_ptr);
@@ -74,7 +74,7 @@ public:
     [[nodiscard]] std::vector<AllocationRecord> snapshot_all() const {
         RecursionGuard guard;
         std::vector<AllocationRecord> result;
-        
+
         for (size_t i = 0; i < SHARD_COUNT; ++i) {
             std::lock_guard<std::mutex> lock(shards_[i].mtx);
             for (const auto& pair : shards_[i].records) {
@@ -120,4 +120,4 @@ private:
     std::array<Shard, SHARD_COUNT> shards_;
 };
 
-}
+}  // namespace memsentry::core

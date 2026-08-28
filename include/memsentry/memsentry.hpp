@@ -1,14 +1,15 @@
 #pragma once
 
 #include "memsentry/config.hpp"
-#include "memsentry/types.hpp"
+#include "memsentry/profiler/fragmentation.hpp"
+#include "memsentry/profiler/histogram.hpp"
 #include "memsentry/profiler/scope_tag.hpp"
 #include "memsentry/profiler/snapshot.hpp"
-#include "memsentry/profiler/histogram.hpp"
-#include "memsentry/profiler/fragmentation.hpp"
 #include "memsentry/reporter/console_reporter.hpp"
-#include "memsentry/reporter/json_reporter.hpp"
 #include "memsentry/reporter/html_reporter.hpp"
+#include "memsentry/reporter/json_reporter.hpp"
+#include "memsentry/types.hpp"
+
 #include <iostream>
 #include <string>
 #include <vector>
@@ -35,4 +36,4 @@ bool export_html(const std::string& filepath);
 profiler::HeapSnapshot take_snapshot(const std::string& label);
 [[nodiscard]] profiler::FragmentationReport get_fragmentation_report();
 
-}
+}  // namespace memsentry

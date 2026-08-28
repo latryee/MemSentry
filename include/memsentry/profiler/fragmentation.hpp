@@ -1,12 +1,13 @@
 #pragma once
 
-#include <cstddef>
-#include <cstdint>
-#include <vector>
-#include <mutex>
-#include <cmath>
 #include "memsentry/profiler/histogram.hpp"
 #include "memsentry/types.hpp"
+
+#include <cmath>
+#include <cstddef>
+#include <cstdint>
+#include <mutex>
+#include <vector>
 
 namespace memsentry::profiler {
 
@@ -47,11 +48,9 @@ struct FragmentationReport {
 
 class FragmentationAnalyzer {
 public:
-    static FragmentationReport analyze(
-        const MemoryStatsSnapshot& stats,
-        const std::vector<AllocationRecord>& active_records,
-        const FreeBlockHistogram& free_hist)
-    {
+    static FragmentationReport analyze(const MemoryStatsSnapshot& stats,
+                                       const std::vector<AllocationRecord>& active_records,
+                                       const FreeBlockHistogram& free_hist) {
         FragmentationReport report;
         report.peak_allocated_bytes = stats.peak_allocated_bytes;
         report.current_allocated_bytes = stats.current_allocated_bytes;
@@ -59,11 +58,13 @@ public:
         report.total_freed_blocks = stats.total_free_count;
 
         if (stats.total_free_count > 0) {
-            report.avg_freed_block_size = static_cast<double>(stats.total_freed_bytes) / static_cast<double>(stats.total_free_count);
+            report.avg_freed_block_size =
+                static_cast<double>(stats.total_freed_bytes) / static_cast<double>(stats.total_free_count);
         }
 
         if (stats.peak_allocated_bytes > 0) {
-            report.external_fragmentation_ratio = 1.0 - (static_cast<double>(stats.current_allocated_bytes) / static_cast<double>(stats.peak_allocated_bytes));
+            report.external_fragmentation_ratio = 1.0 - (static_cast<double>(stats.current_allocated_bytes) /
+                                                         static_cast<double>(stats.peak_allocated_bytes));
         }
 
         AllocationHistogram active_hist;
@@ -75,4 +76,4 @@ public:
     }
 };
 
-}
+}  // namespace memsentry::profiler

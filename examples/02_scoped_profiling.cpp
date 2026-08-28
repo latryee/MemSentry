@@ -1,4 +1,5 @@
 #include "memsentry/memsentry.hpp"
+
 #include <thread>
 #include <vector>
 

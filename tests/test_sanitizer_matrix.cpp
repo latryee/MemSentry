@@ -1,13 +1,14 @@
-#include "memsentry/memsentry.hpp"
-#include "memsentry/core/header.hpp"
 #include "memsentry/core/allocator_hooks.hpp"
-#include <iostream>
-#include <vector>
-#include <string>
-#include <iomanip>
-#include <sstream>
+#include "memsentry/core/header.hpp"
+#include "memsentry/memsentry.hpp"
+
 #include <cstdint>
 #include <cstring>
+#include <iomanip>
+#include <iostream>
+#include <sstream>
+#include <string>
+#include <vector>
 
 struct ScenarioResult {
     std::string name;
@@ -21,17 +22,17 @@ struct ScenarioResult {
 
 static int g_failed_tests = 0;
 
-#define TEST_ASSERT(cond, msg) \
-    do { \
-        if (!(cond)) { \
-            std::cerr << "[-] ASSERTION FAILED: " << msg << " (" << __FILE__ << ":" << __LINE__ << ")\n" << std::flush; \
-            g_failed_tests++; \
-            return; \
-        } \
+#define TEST_ASSERT(cond, msg)                                                                                         \
+    do {                                                                                                               \
+        if (!(cond)) {                                                                                                 \
+            std::cerr << "[-] ASSERTION FAILED: " << msg << " (" << __FILE__ << ":" << __LINE__ << ")\n"               \
+                      << std::flush;                                                                                   \
+            g_failed_tests++;                                                                                          \
+            return;                                                                                                    \
+        }                                                                                                              \
     } while (0)
 
-template <typename T>
-inline void do_not_optimize(T const& value) {
+template <typename T> inline void do_not_optimize(T const& value) {
 #if defined(_MSC_VER)
     auto volatile dummy = *reinterpret_cast<const volatile char*>(&value);
     (void)dummy;
@@ -47,23 +48,21 @@ ScenarioResult test_scenario_buffer_overflow() {
     void* user_ptr = memsentry::core::init_block(raw_mem, SIZE, 16, 16, 101, "OverflowTest", true);
 
     auto* header = memsentry::core::get_header_from_raw_ptr(raw_mem);
-    
+
     // Simulate off-by-one / buffer overrun overwrite
     uint8_t* canary_byte = reinterpret_cast<uint8_t*>(user_ptr) + SIZE;
-    *canary_byte ^= 0xDE; // Corrupt canary
+    *canary_byte ^= 0xDE;  // Corrupt canary
 
     auto status = memsentry::core::verify_canary(header, 16);
     bool detected = (status == memsentry::CorruptionType::FOOTER_CORRUPTED);
 
-    return {
-        "Buffer Overflow (Right Out-Of-Bounds)",
-        "Overrun payload boundary (+1 to +16 bytes)",
-        detected,
-        "CorruptionType::FOOTER_CORRUPTED (Canary mismatch)",
-        true,
-        "AddressSanitizer: heap-buffer-overflow",
-        false
-    };
+    return {"Buffer Overflow (Right Out-Of-Bounds)",
+            "Overrun payload boundary (+1 to +16 bytes)",
+            detected,
+            "CorruptionType::FOOTER_CORRUPTED (Canary mismatch)",
+            true,
+            "AddressSanitizer: heap-buffer-overflow",
+            false};
 }
 
 // 2. Buffer Underrun (Header Magic Corruption)
@@ -74,22 +73,20 @@ ScenarioResult test_scenario_buffer_underrun() {
     (void)user_ptr;
 
     auto* header = memsentry::core::get_header_from_raw_ptr(raw_mem);
-    
+
     // Corrupt header magic signature
     header->magic = 0x00000000;
 
     auto status = memsentry::core::verify_canary(header, 16);
     bool detected = (status == memsentry::CorruptionType::HEADER_CORRUPTED);
 
-    return {
-        "Buffer Underrun (Left Out-Of-Bounds)",
-        "Underrun block header (Magic overwrite)",
-        detected,
-        "CorruptionType::HEADER_CORRUPTED (Magic mismatch)",
-        true,
-        "AddressSanitizer: heap-buffer-overflow (left)",
-        false
-    };
+    return {"Buffer Underrun (Left Out-Of-Bounds)",
+            "Underrun block header (Magic overwrite)",
+            detected,
+            "CorruptionType::HEADER_CORRUPTED (Magic mismatch)",
+            true,
+            "AddressSanitizer: heap-buffer-overflow (left)",
+            false};
 }
 
 // 3. Double-Free / Untracked Pointer
@@ -110,15 +107,13 @@ ScenarioResult test_scenario_double_free() {
     // Tracker erased on first free, so second free is safely handled as untracked
     bool handled_cleanly = (after_double_free.active_allocation_count == base_stats.active_allocation_count);
 
-    return {
-        "Double-Free Anomaly",
-        "Freeing already-deallocated heap pointer",
-        handled_cleanly,
-        "Safe untracked bypass + Zero heap corruption",
-        true,
-        "AddressSanitizer: attempting double-free",
-        false
-    };
+    return {"Double-Free Anomaly",
+            "Freeing already-deallocated heap pointer",
+            handled_cleanly,
+            "Safe untracked bypass + Zero heap corruption",
+            true,
+            "AddressSanitizer: attempting double-free",
+            false};
 }
 
 // 4. Intentional Memory Leak Detection
@@ -147,15 +142,13 @@ ScenarioResult test_scenario_intentional_leak() {
 
     delete[] leaked_data;
 
-    return {
-        "Memory Leak Detection",
-        "Unreleased heap allocation at scope exit",
-        leak_registered && found_record,
-        "Tracked in Active Shard + Callstack Captured",
-        true,
-        "LeakSanitizer (LSan): Direct leak",
-        false
-    };
+    return {"Memory Leak Detection",
+            "Unreleased heap allocation at scope exit",
+            leak_registered && found_record,
+            "Tracked in Active Shard + Callstack Captured",
+            true,
+            "LeakSanitizer (LSan): Direct leak",
+            false};
 }
 
 int main() {
@@ -169,8 +162,8 @@ int main() {
     results.push_back(test_scenario_double_free());
     results.push_back(test_scenario_intentional_leak());
 
-    std::cout << "\n" << std::left
-              << std::setw(32) << "Fault Scenario"
+    std::cout << "\n"
+              << std::left << std::setw(32) << "Fault Scenario"
               << " | " << std::setw(12) << "MemSentry"
               << " | " << std::setw(8) << "ASan"
               << " | " << std::setw(8) << "UBSan"
@@ -179,12 +172,12 @@ int main() {
 
     bool all_passed = true;
     for (const auto& r : results) {
-        std::cout << std::left << std::setw(32) << r.name
-                  << " | " << std::setw(12) << (r.memsentry_detected ? "[DETECTED]" : "[MISSED]")
-                  << " | " << std::setw(8) << (r.asan_equivalent ? "[YES]" : "[NO]")
-                  << " | " << std::setw(8) << (r.ubsan_equivalent ? "[YES]" : "[N/A]")
-                  << " | " << r.memsentry_diagnostic << "\n";
-        if (!r.memsentry_detected) all_passed = false;
+        std::cout << std::left << std::setw(32) << r.name << " | " << std::setw(12)
+                  << (r.memsentry_detected ? "[DETECTED]" : "[MISSED]") << " | " << std::setw(8)
+                  << (r.asan_equivalent ? "[YES]" : "[NO]") << " | " << std::setw(8)
+                  << (r.ubsan_equivalent ? "[YES]" : "[N/A]") << " | " << r.memsentry_diagnostic << "\n";
+        if (!r.memsentry_detected)
+            all_passed = false;
     }
 
     std::cout << "================================================================================\n";

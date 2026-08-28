@@ -1,11 +1,12 @@
 #pragma once
 
+#include "memsentry/types.hpp"
+
+#include <array>
 #include <cstddef>
 #include <cstdint>
-#include <vector>
 #include <string>
-#include <array>
-#include "memsentry/types.hpp"
+#include <vector>
 
 namespace memsentry::profiler {
 
@@ -20,16 +21,14 @@ struct SizeBucket {
 class AllocationHistogram {
 public:
     AllocationHistogram() {
-        buckets_ = {
-            SizeBucket{"[1 - 16 B]", 1, 16, 0, 0},
-            SizeBucket{"[17 - 64 B]", 17, 64, 0, 0},
-            SizeBucket{"[65 - 256 B]", 65, 256, 0, 0},
-            SizeBucket{"[257 B - 1 KB]", 257, 1024, 0, 0},
-            SizeBucket{"[1 KB - 4 KB]", 1025, 4096, 0, 0},
-            SizeBucket{"[4 KB - 64 KB]", 4097, 65536, 0, 0},
-            SizeBucket{"[64 KB - 1 MB]", 65537, 1048576, 0, 0},
-            SizeBucket{"[> 1 MB]", 1048577, static_cast<size_t>(-1), 0, 0}
-        };
+        buckets_ = {SizeBucket{"[1 - 16 B]", 1, 16, 0, 0},
+                    SizeBucket{"[17 - 64 B]", 17, 64, 0, 0},
+                    SizeBucket{"[65 - 256 B]", 65, 256, 0, 0},
+                    SizeBucket{"[257 B - 1 KB]", 257, 1024, 0, 0},
+                    SizeBucket{"[1 KB - 4 KB]", 1025, 4096, 0, 0},
+                    SizeBucket{"[4 KB - 64 KB]", 4097, 65536, 0, 0},
+                    SizeBucket{"[64 KB - 1 MB]", 65537, 1048576, 0, 0},
+                    SizeBucket{"[> 1 MB]", 1048577, static_cast<size_t>(-1), 0, 0}};
     }
 
     void record(size_t size) noexcept {
@@ -48,12 +47,10 @@ public:
         }
     }
 
-    [[nodiscard]] const std::vector<SizeBucket>& buckets() const noexcept {
-        return buckets_;
-    }
+    [[nodiscard]] const std::vector<SizeBucket>& buckets() const noexcept { return buckets_; }
 
 private:
     std::vector<SizeBucket> buckets_;
 };
 
-}
+}  // namespace memsentry::profiler

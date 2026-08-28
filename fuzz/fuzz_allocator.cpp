@@ -1,14 +1,16 @@
-#include "memsentry/memsentry.hpp"
 #include "memsentry/core/header.hpp"
 #include "memsentry/core/suppression_engine.hpp"
-#include <cstdint>
+#include "memsentry/memsentry.hpp"
+
 #include <cstddef>
-#include <vector>
-#include <string>
+#include <cstdint>
 #include <cstring>
+#include <string>
+#include <vector>
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
-    if (size < 32) return 0;
+    if (size < 32)
+        return 0;
 
     // 1. Fuzz BlockHeader and Canary Verification
     {
@@ -29,15 +31,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
         size_t footer_size = (data[3] % 32) + 8;
 
         alignas(64) uint8_t memory[1024] = {0};
-        void* user_ptr = memsentry::core::init_block(
-            memory,
-            req_size,
-            alignment,
-            footer_size,
-            1,
-            "FuzzTag",
-            true
-        );
+        void* user_ptr = memsentry::core::init_block(memory, req_size, alignment, footer_size, 1, "FuzzTag", true);
 
         if (user_ptr) {
             auto* header = memsentry::core::get_header_from_raw_ptr(memory);

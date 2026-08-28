@@ -1,12 +1,13 @@
 #pragma once
 
-#include <cstdint>
-#include <vector>
-#include <string>
-#include <array>
-#include <mutex>
-#include <unordered_map>
 #include "memsentry/types.hpp"
+
+#include <array>
+#include <cstdint>
+#include <mutex>
+#include <string>
+#include <unordered_map>
+#include <vector>
 
 namespace memsentry::stacktrace {
 
@@ -33,4 +34,4 @@ private:
     std::unordered_map<uintptr_t, StackFrame> symbol_cache_;
 };
 
-}
+}  // namespace memsentry::stacktrace

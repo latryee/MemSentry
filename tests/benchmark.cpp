@@ -1,12 +1,13 @@
-#include "memsentry/memsentry.hpp"
 #include "memsentry/core/recursion_guard.hpp"
-#include <iostream>
-#include <vector>
-#include <thread>
+#include "memsentry/memsentry.hpp"
+
 #include <chrono>
-#include <iomanip>
-#include <numeric>
 #include <cstdlib>
+#include <iomanip>
+#include <iostream>
+#include <numeric>
+#include <thread>
+#include <vector>
 
 struct BenchmarkResult {
     std::string name;
@@ -16,8 +17,7 @@ struct BenchmarkResult {
     double avg_latency_ns;
 };
 
-template <typename T>
-inline void do_not_optimize(T const& value) {
+template <typename T> inline void do_not_optimize(T const& value) {
 #if defined(_MSC_VER)
     auto volatile dummy = *reinterpret_cast<const volatile char*>(&value);
     (void)dummy;
@@ -27,8 +27,8 @@ inline void do_not_optimize(T const& value) {
 }
 
 void print_result(const BenchmarkResult& res) {
-    std::cout << "  " << std::left << std::setw(34) << res.name
-              << " | " << std::right << std::setw(8) << std::fixed << std::setprecision(2) << res.elapsed_ms << " ms"
+    std::cout << "  " << std::left << std::setw(34) << res.name << " | " << std::right << std::setw(8) << std::fixed
+              << std::setprecision(2) << res.elapsed_ms << " ms"
               << " | " << std::setw(12) << std::fixed << std::setprecision(0) << res.ops_per_sec << " ops/s"
               << " | " << std::setw(8) << std::fixed << std::setprecision(1) << res.avg_latency_ns << " ns/op\n";
 }
@@ -137,7 +137,8 @@ void bench_snapshot_under_contention(int thread_count, uint64_t iterations_per_t
     snapshot_latencies_us.reserve(100);
 
     auto start = std::chrono::high_resolution_clock::now();
-    while (std::chrono::duration<double, std::milli>(std::chrono::high_resolution_clock::now() - start).count() < 100.0 ||
+    while (std::chrono::duration<double, std::milli>(std::chrono::high_resolution_clock::now() - start).count() <
+               100.0 ||
            snapshot_latencies_us.size() < 20) {
         auto snap_start = std::chrono::high_resolution_clock::now();
         auto snap = memsentry::take_snapshot("ContentionBenchmark");
@@ -152,13 +153,18 @@ void bench_snapshot_under_contention(int thread_count, uint64_t iterations_per_t
     running.store(false, std::memory_order_relaxed);
 
     for (auto& w : workers) {
-        if (w.joinable()) w.join();
+        if (w.joinable())
+            w.join();
     }
 
     double total_us = std::accumulate(snapshot_latencies_us.begin(), snapshot_latencies_us.end(), 0.0);
     double avg_us = snapshot_latencies_us.empty() ? 0.0 : total_us / snapshot_latencies_us.size();
-    double min_us = snapshot_latencies_us.empty() ? 0.0 : *std::min_element(snapshot_latencies_us.begin(), snapshot_latencies_us.end());
-    double max_us = snapshot_latencies_us.empty() ? 0.0 : *std::max_element(snapshot_latencies_us.begin(), snapshot_latencies_us.end());
+    double min_us = snapshot_latencies_us.empty()
+                        ? 0.0
+                        : *std::min_element(snapshot_latencies_us.begin(), snapshot_latencies_us.end());
+    double max_us = snapshot_latencies_us.empty()
+                        ? 0.0
+                        : *std::max_element(snapshot_latencies_us.begin(), snapshot_latencies_us.end());
 
     std::cout << "  [" << thread_count << " Threads Contention] Snapshots: " << snapshot_latencies_us.size()
               << " | Avg: " << std::fixed << std::setprecision(1) << avg_us << " us"
@@ -219,11 +225,16 @@ int main() {
 
     std::cout << "--------------------------------------------------------------------------------\n";
     std::cout << " Measured Overhead vs Baseline:\n";
-    std::cout << "   - Minimal (Tracking only)     : " << std::fixed << std::setprecision(2) << (r_min.elapsed_ms / r_base.elapsed_ms) << "x runtime\n";
-    std::cout << "   - With Red-Zone Canary        : " << std::fixed << std::setprecision(2) << (r_canary.elapsed_ms / r_base.elapsed_ms) << "x runtime\n";
-    std::cout << "   - Full (Canary + Stacktrace)  : " << std::fixed << std::setprecision(2) << ((r_full.elapsed_ms * 2.0) / r_base.elapsed_ms) << "x runtime\n";
-    std::cout << "   - Sampling 10% (Production)   : " << std::fixed << std::setprecision(2) << (r_sample_10.elapsed_ms / r_base.elapsed_ms) << "x runtime\n";
-    std::cout << "   - Sampling 1% (Ultra-Fast)    : " << std::fixed << std::setprecision(2) << (r_sample_10.elapsed_ms / r_base.elapsed_ms) << "x runtime\n";
+    std::cout << "   - Minimal (Tracking only)     : " << std::fixed << std::setprecision(2)
+              << (r_min.elapsed_ms / r_base.elapsed_ms) << "x runtime\n";
+    std::cout << "   - With Red-Zone Canary        : " << std::fixed << std::setprecision(2)
+              << (r_canary.elapsed_ms / r_base.elapsed_ms) << "x runtime\n";
+    std::cout << "   - Full (Canary + Stacktrace)  : " << std::fixed << std::setprecision(2)
+              << ((r_full.elapsed_ms * 2.0) / r_base.elapsed_ms) << "x runtime\n";
+    std::cout << "   - Sampling 10% (Production)   : " << std::fixed << std::setprecision(2)
+              << (r_sample_10.elapsed_ms / r_base.elapsed_ms) << "x runtime\n";
+    std::cout << "   - Sampling 1% (Ultra-Fast)    : " << std::fixed << std::setprecision(2)
+              << (r_sample_10.elapsed_ms / r_base.elapsed_ms) << "x runtime\n";
 
     std::cout << "\n[2] Multi-Threaded Throughput Scaling (64 Shards, 25,000 ops/thread):\n";
     std::cout << "--------------------------------------------------------------------------------\n";
@@ -243,4 +254,3 @@ int main() {
     std::cout << "================================================================================\n";
     return 0;
 }
-

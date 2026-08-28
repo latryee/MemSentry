@@ -1,20 +1,17 @@
 #include "memsentry/memsentry.hpp"
-#include <vector>
-#include <string>
+
 #include <cstdint>
+#include <string>
+#include <vector>
 
 struct TextureResource {
     int width = 1920;
     int height = 1080;
     uint8_t* pixel_buffer = nullptr;
 
-    TextureResource() {
-        pixel_buffer = new uint8_t[width * height * 4];
-    }
+    TextureResource() { pixel_buffer = new uint8_t[width * height * 4]; }
 
-    ~TextureResource() {
-        delete[] pixel_buffer;
-    }
+    ~TextureResource() { delete[] pixel_buffer; }
 };
 
 void simulate_leak() {

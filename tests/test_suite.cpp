@@ -1,39 +1,39 @@
-#include "memsentry/memsentry.hpp"
 #include "memsentry/core/allocator_hooks.hpp"
 #include "memsentry/core/header.hpp"
-#include <iostream>
+#include "memsentry/memsentry.hpp"
+
 #include <cassert>
-#include <string>
-#include <vector>
-#include <thread>
-#include <new>
 #include <cstdlib>
+#include <iostream>
+#include <new>
+#include <string>
+#include <thread>
+#include <vector>
 
 static int g_failed_tests = 0;
 
-#define TEST_ASSERT(cond, msg) \
-    do { \
-        if (!(cond)) { \
-            std::cerr << "[-] ASSERTION FAILED: " << msg << " (" << __FILE__ << ":" << __LINE__ << ")\n"; \
-            g_failed_tests++; \
-            return; \
-        } \
+#define TEST_ASSERT(cond, msg)                                                                                         \
+    do {                                                                                                               \
+        if (!(cond)) {                                                                                                 \
+            std::cerr << "[-] ASSERTION FAILED: " << msg << " (" << __FILE__ << ":" << __LINE__ << ")\n";              \
+            g_failed_tests++;                                                                                          \
+            return;                                                                                                    \
+        }                                                                                                              \
     } while (0)
 
-#define RUN_TEST(fn) \
-    do { \
-        std::cout << "[RUN] " << #fn << "...\n" << std::flush; \
-        int before = g_failed_tests; \
-        fn(); \
-        if (g_failed_tests == before) { \
-            std::cout << "  [PASS] " << #fn << "\n" << std::flush; \
-        } else { \
-            std::cout << "  [FAIL] " << #fn << "\n" << std::flush; \
-        } \
+#define RUN_TEST(fn)                                                                                                   \
+    do {                                                                                                               \
+        std::cout << "[RUN] " << #fn << "...\n" << std::flush;                                                         \
+        int before = g_failed_tests;                                                                                   \
+        fn();                                                                                                          \
+        if (g_failed_tests == before) {                                                                                \
+            std::cout << "  [PASS] " << #fn << "\n" << std::flush;                                                     \
+        } else {                                                                                                       \
+            std::cout << "  [FAIL] " << #fn << "\n" << std::flush;                                                     \
+        }                                                                                                              \
     } while (0)
 
-template <typename T>
-inline void do_not_optimize(T const& value) {
+template <typename T> inline void do_not_optimize(T const& value) {
 #if defined(_MSC_VER)
     auto volatile dummy = *reinterpret_cast<const volatile char*>(&value);
     (void)dummy;
@@ -50,13 +50,15 @@ void test_basic_alloc_free() {
     TEST_ASSERT(*p == 12345, "p value must be preserved");
 
     auto alloc_stats = memsentry::get_stats();
-    TEST_ASSERT(alloc_stats.active_allocation_count == initial_stats.active_allocation_count + 1, "active alloc count incremented");
+    TEST_ASSERT(alloc_stats.active_allocation_count == initial_stats.active_allocation_count + 1,
+                "active alloc count incremented");
 
     do_not_optimize(p);
     delete p;
 
     auto free_stats = memsentry::get_stats();
-    TEST_ASSERT(free_stats.active_allocation_count == initial_stats.active_allocation_count, "active alloc count restored");
+    TEST_ASSERT(free_stats.active_allocation_count == initial_stats.active_allocation_count,
+                "active alloc count restored");
 }
 
 void test_array_alloc_free() {
@@ -64,7 +66,8 @@ void test_array_alloc_free() {
     constexpr size_t count = 100;
     double* arr = new double[count];
     do_not_optimize(arr);
-    for (size_t i = 0; i < count; ++i) arr[i] = static_cast<double>(i) * 1.5;
+    for (size_t i = 0; i < count; ++i)
+        arr[i] = static_cast<double>(i) * 1.5;
 
     TEST_ASSERT(arr[50] == 75.0, "array contents preserved");
     do_not_optimize(arr);
@@ -124,9 +127,11 @@ void test_scoped_tagging() {
         TEST_ASSERT(std::string(memsentry::profiler::ScopedTag::current()) == "TestSubsystem", "tag must match scope");
         {
             MEMSENTRY_SCOPE_TAG("NestedSubsystem");
-            TEST_ASSERT(std::string(memsentry::profiler::ScopedTag::current()) == "NestedSubsystem", "nested tag active");
+            TEST_ASSERT(std::string(memsentry::profiler::ScopedTag::current()) == "NestedSubsystem",
+                        "nested tag active");
         }
-        TEST_ASSERT(std::string(memsentry::profiler::ScopedTag::current()) == "TestSubsystem", "tag restored after inner scope");
+        TEST_ASSERT(std::string(memsentry::profiler::ScopedTag::current()) == "TestSubsystem",
+                    "tag restored after inner scope");
     }
     TEST_ASSERT(std::string(memsentry::profiler::ScopedTag::current()) == "General", "tag restored to General");
 }
