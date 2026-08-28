@@ -22,13 +22,13 @@ static int g_failed_tests = 0;
 
 #define RUN_TEST(fn) \
     do { \
-        std::cout << "[RUN] " << #fn << "...\n"; \
+        std::cout << "[RUN] " << #fn << "...\n" << std::flush; \
         int before = g_failed_tests; \
         fn(); \
         if (g_failed_tests == before) { \
-            std::cout << "  [PASS] " << #fn << "\n"; \
+            std::cout << "  [PASS] " << #fn << "\n" << std::flush; \
         } else { \
-            std::cout << "  [FAIL] " << #fn << "\n"; \
+            std::cout << "  [FAIL] " << #fn << "\n" << std::flush; \
         } \
     } while (0)
 
@@ -157,7 +157,7 @@ int main() {
 
     std::cout << "==================================================\n";
     std::cout << "           MemSentry Test Suite Execution         \n";
-    std::cout << "==================================================\n";
+    std::cout << "==================================================\n" << std::flush;
 
     RUN_TEST(test_basic_alloc_free);
     RUN_TEST(test_array_alloc_free);
@@ -167,12 +167,12 @@ int main() {
     RUN_TEST(test_snapshot_diffing);
     RUN_TEST(test_json_and_html_export);
 
-    std::cout << "==================================================\n";
+    std::cout << "==================================================\n" << std::flush;
     if (g_failed_tests == 0) {
-        std::cout << "[SUCCESS] All unit tests passed cleanly!\n";
+        std::cout << "[SUCCESS] All unit tests passed cleanly!\n" << std::flush;
         return 0;
     } else {
-        std::cerr << "[FAILURE] " << g_failed_tests << " test(s) failed.\n";
+        std::cerr << "[FAILURE] " << g_failed_tests << " test(s) failed.\n" << std::flush;
         return 1;
     }
 }

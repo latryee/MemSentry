@@ -13,6 +13,9 @@
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <windows.h>
+#if defined(_MSC_VER) && defined(_DEBUG)
+#include <crtdbg.h>
+#endif
 #elif defined(__linux__)
 #include <unistd.h>
 #if defined(__has_include)
@@ -35,6 +38,14 @@ public:
 
     void initialize(const Config& config) {
         core::RecursionGuard guard;
+#if defined(_MSC_VER) && defined(_DEBUG)
+        _CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_FILE);
+        _CrtSetReportFile(_CRT_WARN, _CRTDBG_FILE_STDERR);
+        _CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_FILE);
+        _CrtSetReportFile(_CRT_ERROR, _CRTDBG_FILE_STDERR);
+        _CrtSetReportMode(_CRT_ASSERT, _CRTDBG_MODE_FILE);
+        _CrtSetReportFile(_CRT_ASSERT, _CRTDBG_FILE_STDERR);
+#endif
         config_ = config;
         if (initialized_.exchange(true)) return;
 
