@@ -12,7 +12,7 @@ namespace memsentry {
 
 inline constexpr uint64_t CANARY_HEADER_MAGIC = 0xDEADBEEFCAFEBABEULL;
 inline constexpr uint64_t CANARY_FOOTER_MAGIC = 0xBAADF00D5EADC0DEULL;
-inline constexpr size_t DEFAULT_ALIGNMENT = alignof(std::max_align_t);
+inline constexpr size_t DEFAULT_ALIGNMENT = 16;
 
 enum class ReportFormat : uint8_t {
     CONSOLE_ANSI = 0,

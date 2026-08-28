@@ -34,13 +34,14 @@ public:
     static Manager& instance() noexcept;
 
     void initialize(const Config& config) {
-        config_ = config;
         if (initialized_.exchange(true)) return;
+
+        core::RecursionGuard guard;
+        config_ = config;
 
         volatile int anchor = core::ensure_hooks_linked();
         (void)anchor;
 
-        core::RecursionGuard guard;
         stacktrace::StackTraceProvider::instance().initialize();
 
         if (config_.auto_report_on_exit) {
@@ -52,6 +53,7 @@ public:
 
     void shutdown() {
         if (!initialized_.exchange(false)) return;
+        core::RecursionGuard guard;
         stacktrace::StackTraceProvider::instance().cleanup();
     }
 
