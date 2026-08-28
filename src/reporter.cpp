@@ -147,9 +147,11 @@ std::string JsonReporter::serialize(const MemoryStatsSnapshot& stats, const std:
     ss << "  \"leaks\": [\n";
     for (size_t i = 0; i < records.size(); ++i) {
         const auto& rec = records[i];
+        std::ostringstream addr_ss;
+        addr_ss << "0x" << std::hex << reinterpret_cast<uintptr_t>(rec.user_ptr);
         ss << "    {\n";
         ss << "      \"id\": " << rec.allocation_id << ",\n";
-        ss << "      \"address\": \"" << rec.user_ptr << "\",\n";
+        ss << "      \"address\": \"" << addr_ss.str() << "\",\n";
         ss << "      \"requested_size\": " << rec.requested_size << ",\n";
         ss << "      \"total_size\": " << rec.total_size << ",\n";
         ss << "      \"thread_id\": " << rec.thread_id << ",\n";

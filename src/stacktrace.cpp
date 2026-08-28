@@ -25,8 +25,17 @@ static std::mutex g_symbol_mutex;
 static std::unordered_map<uintptr_t, StackFrame> g_symbol_cache;
 
 StackTraceProvider& StackTraceProvider::instance() noexcept {
-    static StackTraceProvider instance;
-    return instance;
+    alignas(64) static uint8_t storage[sizeof(StackTraceProvider)];
+    static std::atomic<bool> initialized{false};
+    static std::mutex init_mtx;
+    if (!initialized.load(std::memory_order_acquire)) {
+        std::lock_guard<std::mutex> lock(init_mtx);
+        if (!initialized.load(std::memory_order_relaxed)) {
+            new (storage) StackTraceProvider();
+            initialized.store(true, std::memory_order_release);
+        }
+    }
+    return *reinterpret_cast<StackTraceProvider*>(storage);
 }
 
 StackTraceProvider::StackTraceProvider() {
@@ -73,8 +82,11 @@ uint16_t StackTraceProvider::capture(void** out_frames, uint32_t max_depth, uint
     );
     return static_cast<uint16_t>(captured);
 #elif defined(__linux__) || defined(__APPLE__)
-    void* buffer[64];
-    int count = backtrace(buffer, static_cast<int>(max_depth + skip_frames));
+    constexpr int MAX_CAPTURE = 64;
+    int depth = static_cast<int>(max_depth + skip_frames);
+    if (depth > MAX_CAPTURE) depth = MAX_CAPTURE;
+    void* buffer[MAX_CAPTURE];
+    int count = backtrace(buffer, depth);
     if (count <= static_cast<int>(skip_frames)) return 0;
 
     uint16_t captured = 0;

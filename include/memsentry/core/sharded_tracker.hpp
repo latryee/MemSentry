@@ -5,10 +5,13 @@
 #include <mutex>
 #include <unordered_map>
 #include <vector>
-#include "memsentry/config.hpp"
+#include <array>
 #include "memsentry/types.hpp"
 
 namespace memsentry::core {
+
+inline constexpr size_t SHARD_COUNT = 64;
+static_assert((SHARD_COUNT & (SHARD_COUNT - 1)) == 0, "SHARD_COUNT must be a power of 2");
 
 class ShardedTracker {
 public:
@@ -55,19 +58,24 @@ public:
     }
 
     [[nodiscard]] std::vector<AllocationRecord> snapshot_all() const {
+        RecursionGuard guard;
         std::vector<AllocationRecord> result;
-        size_t total_count = 0;
+        
+        // Single-pass lock acquisition
         for (size_t i = 0; i < SHARD_COUNT; ++i) {
-            std::lock_guard<std::mutex> lock(shards_[i].mtx);
-            total_count += shards_[i].records.size();
+            shards_[i].mtx.lock();
         }
-        result.reserve(total_count);
+
         for (size_t i = 0; i < SHARD_COUNT; ++i) {
-            std::lock_guard<std::mutex> lock(shards_[i].mtx);
-            for (const auto& [ptr, record] : shards_[i].records) {
-                result.push_back(record);
+            for (const auto& pair : shards_[i].records) {
+                result.push_back(pair.second);
             }
         }
+
+        for (size_t i = 0; i < SHARD_COUNT; ++i) {
+            shards_[i].mtx.unlock();
+        }
+
         return result;
     }
 
@@ -95,7 +103,7 @@ private:
 
     static inline size_t get_shard_index(const void* ptr) noexcept {
         uintptr_t val = reinterpret_cast<uintptr_t>(ptr);
-        return (val >> 4) % SHARD_COUNT;
+        return ((val >> 4) ^ (val >> 10)) & (SHARD_COUNT - 1);
     }
 
     std::array<Shard, SHARD_COUNT> shards_;

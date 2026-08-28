@@ -26,10 +26,13 @@ if defined CLANG_BIN (
     "!CLANG_BIN!" !CXXFLAGS! examples/02_scoped_profiling.cpp !SOURCES! -o bin/02_scoped_profiling.exe !LIBS!
     "!CLANG_BIN!" !CXXFLAGS! examples/03_snapshot_diffing.cpp !SOURCES! -o bin/03_snapshot_diffing.exe !LIBS!
     "!CLANG_BIN!" !CXXFLAGS! examples/04_buffer_overflow.cpp !SOURCES! -o bin/04_buffer_overflow.exe !LIBS!
+    "!CLANG_BIN!" !CXXFLAGS! examples/demo.cpp !SOURCES! -o bin/demo.exe !LIBS!
 
-    echo [*] Compiling Tests...
+    echo [*] Compiling Tests and Benchmarks...
     "!CLANG_BIN!" !CXXFLAGS! tests/test_tracker.cpp !SOURCES! -o bin/test_tracker.exe !LIBS!
     "!CLANG_BIN!" !CXXFLAGS! tests/test_canary.cpp !SOURCES! -o bin/test_canary.exe !LIBS!
+    "!CLANG_BIN!" !CXXFLAGS! tests/test_suite.cpp !SOURCES! -o bin/test_suite.exe !LIBS!
+    "!CLANG_BIN!" !CXXFLAGS! -O3 tests/benchmark.cpp !SOURCES! -o bin/benchmark.exe !LIBS!
 
     echo =======================================================
     echo  Build complete! Binaries are in the 'bin\' folder.
@@ -56,10 +59,13 @@ cl %CXXFLAGS% examples\01_basic_leak.cpp %SOURCES% /Fe:bin\01_basic_leak.exe /li
 cl %CXXFLAGS% examples\02_scoped_profiling.cpp %SOURCES% /Fe:bin\02_scoped_profiling.exe /link %LIBS%
 cl %CXXFLAGS% examples\03_snapshot_diffing.cpp %SOURCES% /Fe:bin\03_snapshot_diffing.exe /link %LIBS%
 cl %CXXFLAGS% examples\04_buffer_overflow.cpp %SOURCES% /Fe:bin\04_buffer_overflow.exe /link %LIBS%
+cl %CXXFLAGS% examples\demo.cpp %SOURCES% /Fe:bin\demo.exe /link %LIBS%
 
-echo [*] Compiling Tests...
+echo [*] Compiling Tests and Benchmarks...
 cl %CXXFLAGS% tests\test_tracker.cpp %SOURCES% /Fe:bin\test_tracker.exe /link %LIBS%
 cl %CXXFLAGS% tests\test_canary.cpp %SOURCES% /Fe:bin\test_canary.exe /link %LIBS%
+cl %CXXFLAGS% tests\test_suite.cpp %SOURCES% /Fe:bin\test_suite.exe /link %LIBS%
+cl %CXXFLAGS% tests\benchmark.cpp %SOURCES% /Fe:bin\benchmark.exe /link %LIBS%
 
 del *.obj >nul 2>&1
 

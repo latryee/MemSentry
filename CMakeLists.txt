@@ -34,6 +34,8 @@ set(MEMSENTRY_HEADERS
 )
 
 add_library(memsentry STATIC ${MEMSENTRY_SOURCES} ${MEMSENTRY_HEADERS})
+add_library(memsentry::memsentry ALIAS memsentry)
+
 target_include_directories(memsentry PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
@@ -43,6 +45,8 @@ if (WIN32)
     target_link_libraries(memsentry PUBLIC dbghelp Threads::Threads)
     if (MSVC)
         target_compile_options(memsentry PRIVATE /EHsc /W3 /Zc:__cplusplus)
+    else()
+        target_compile_options(memsentry PRIVATE -Wall -Wextra -Wno-unused-parameter)
     endif()
 elseif (APPLE)
     target_link_libraries(memsentry PUBLIC Threads::Threads)
@@ -67,6 +71,9 @@ if (MEMSENTRY_BUILD_EXAMPLES)
 
     add_executable(04_buffer_overflow examples/04_buffer_overflow.cpp)
     target_link_libraries(04_buffer_overflow PRIVATE memsentry)
+
+    add_executable(demo examples/demo.cpp)
+    target_link_libraries(demo PRIVATE memsentry)
 endif()
 
 if (MEMSENTRY_BUILD_TESTS)
@@ -79,4 +86,11 @@ if (MEMSENTRY_BUILD_TESTS)
     add_executable(test_canary tests/test_canary.cpp)
     target_link_libraries(test_canary PRIVATE memsentry)
     add_test(NAME test_canary COMMAND $<TARGET_FILE:test_canary>)
+
+    add_executable(test_suite tests/test_suite.cpp)
+    target_link_libraries(test_suite PRIVATE memsentry)
+    add_test(NAME test_suite COMMAND $<TARGET_FILE:test_suite>)
+
+    add_executable(benchmark tests/benchmark.cpp)
+    target_link_libraries(benchmark PRIVATE memsentry)
 endif()

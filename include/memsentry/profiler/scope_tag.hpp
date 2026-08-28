@@ -1,12 +1,49 @@
 #pragma once
 
+#if defined(_WIN32)
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#include <windows.h>
+#endif
+
 namespace memsentry::profiler {
 
-#if defined(_MSC_VER)
-extern __declspec(thread) const char* g_active_tag;
+#if defined(_WIN32)
+extern DWORD g_tls_tag_index;
+
+class ScopedTag {
+public:
+    explicit ScopedTag(const char* tag) noexcept {
+        if (g_tls_tag_index != TLS_OUT_OF_INDEXES) {
+            prev_ = static_cast<const char*>(TlsGetValue(g_tls_tag_index));
+            TlsSetValue(g_tls_tag_index, const_cast<char*>(tag));
+        }
+    }
+
+    ~ScopedTag() noexcept {
+        if (g_tls_tag_index != TLS_OUT_OF_INDEXES) {
+            TlsSetValue(g_tls_tag_index, const_cast<char*>(prev_));
+        }
+    }
+
+    ScopedTag(const ScopedTag&) = delete;
+    ScopedTag& operator=(const ScopedTag&) = delete;
+
+    [[nodiscard]] static const char* current() noexcept {
+        if (g_tls_tag_index != TLS_OUT_OF_INDEXES) {
+            auto* tag = static_cast<const char*>(TlsGetValue(g_tls_tag_index));
+            return tag ? tag : "General";
+        }
+        return "General";
+    }
+
+private:
+    const char* prev_ = nullptr;
+};
+
 #else
-extern thread_local const char* g_active_tag;
-#endif
+
+extern __thread const char* g_active_tag;
 
 class ScopedTag {
 public:
@@ -28,6 +65,8 @@ public:
 private:
     const char* prev_;
 };
+
+#endif
 
 }
 

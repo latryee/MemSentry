@@ -7,9 +7,11 @@
 #include <cstdlib>
 #include <atomic>
 #include <thread>
+#include <iostream>
 
 #if defined(_WIN32)
 #define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
 #include <windows.h>
 #elif defined(__linux__)
 #include <unistd.h>
@@ -26,18 +28,18 @@
 #endif
 
 namespace memsentry::core {
-#if defined(_MSC_VER)
-__declspec(thread) bool g_recursion_active = false;
+#if defined(_WIN32)
+DWORD g_tls_recursion_index = TLS_OUT_OF_INDEXES;
 #else
-thread_local bool g_recursion_active = false;
+__thread bool g_recursion_active = false;
 #endif
 }
 
 namespace memsentry::profiler {
-#if defined(_MSC_VER)
-__declspec(thread) const char* g_active_tag = nullptr;
+#if defined(_WIN32)
+DWORD g_tls_tag_index = TLS_OUT_OF_INDEXES;
 #else
-thread_local const char* g_active_tag = nullptr;
+__thread const char* g_active_tag = nullptr;
 #endif
 }
 
@@ -45,14 +47,21 @@ namespace memsentry {
 
 class Manager {
 public:
-    static Manager& instance() noexcept {
-        static Manager inst;
-        return inst;
-    }
+    static Manager& instance() noexcept;
 
     void initialize(const Config& config) {
         config_ = config;
         if (initialized_.exchange(true)) return;
+
+#if defined(_WIN32)
+        if (core::g_tls_recursion_index == TLS_OUT_OF_INDEXES) {
+            core::g_tls_recursion_index = TlsAlloc();
+        }
+        if (profiler::g_tls_tag_index == TLS_OUT_OF_INDEXES) {
+            profiler::g_tls_tag_index = TlsAlloc();
+        }
+#endif
+
         stacktrace::StackTraceProvider::instance().initialize();
 
         if (config_.auto_report_on_exit) {
@@ -79,13 +88,20 @@ public:
         core::RecursionGuard guard;
 
         size_t total_size = core::calculate_total_size(size, alignment, config_.canary_footer_size);
+        if (total_size == 0) return nullptr;
+
         void* raw_ptr = std::malloc(total_size);
         if (!raw_ptr) return nullptr;
 
         uint64_t alloc_id = alloc_counter_.fetch_add(1, std::memory_order_relaxed);
-        const char* final_tag = tag ? tag : (profiler::g_active_tag ? profiler::g_active_tag : config_.default_tag);
+        const char* active_tag = profiler::ScopedTag::current();
+        const char* final_tag = tag ? tag : (active_tag ? active_tag : config_.default_tag);
 
         void* user_ptr = core::init_block(raw_ptr, size, alignment, config_.canary_footer_size, alloc_id, final_tag, config_.enable_canary);
+        if (!user_ptr) {
+            std::free(raw_ptr);
+            return nullptr;
+        }
 
         AllocationRecord record;
         record.allocation_id = alloc_id;
@@ -132,6 +148,11 @@ public:
                 }
             }
             stats_.update_on_free(record.requested_size);
+
+            auto* header = core::get_header_from_raw_ptr(record.raw_ptr);
+            if (header) {
+                header->magic = 0xBAADF00DDEADBEEFULL;
+            }
             std::free(record.raw_ptr);
         } else {
             std::free(user_ptr);
@@ -169,6 +190,7 @@ public:
     }
 
     [[nodiscard]] std::vector<AllocationRecord> get_active_allocations() const {
+        core::RecursionGuard guard;
         return tracker_.snapshot_all();
     }
 
@@ -216,6 +238,7 @@ private:
 
     void on_exit() {
         if (!initialized_.load(std::memory_order_relaxed)) return;
+        if (!config_.auto_report_on_exit) return;
         dump_leaks(std::cout);
         if (config_.exit_with_code_on_leak && has_leaks()) {
             std::exit(1);
@@ -228,7 +251,9 @@ private:
 #elif defined(__linux__) && defined(SYS_gettid)
         return static_cast<uint32_t>(syscall(SYS_gettid));
 #elif defined(__APPLE__)
-        return static_cast<uint32_t>(reinterpret_cast<uintptr_t>(pthread_self()));
+        uint64_t tid = 0;
+        pthread_threadid_np(nullptr, &tid);
+        return static_cast<uint32_t>(tid);
 #else
         return static_cast<uint32_t>(std::hash<std::thread::id>{}(std::this_thread::get_id()));
 #endif
@@ -240,6 +265,21 @@ private:
     MemoryStats stats_;
     core::ShardedTracker tracker_;
 };
+
+Manager& Manager::instance() noexcept {
+    alignas(64) static uint8_t storage[sizeof(Manager)];
+    static std::atomic<bool> initialized{false};
+    static std::mutex init_mtx;
+    if (!initialized.load(std::memory_order_acquire)) {
+        std::lock_guard<std::mutex> lock(init_mtx);
+        if (!initialized.load(std::memory_order_relaxed)) {
+            core::RecursionGuard guard;
+            new (storage) Manager();
+            initialized.store(true, std::memory_order_release);
+        }
+    }
+    return *reinterpret_cast<Manager*>(storage);
+}
 
 void init(const Config& config) {
     Manager::instance().initialize(config);

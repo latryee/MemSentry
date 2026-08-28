@@ -51,9 +51,11 @@ int main() {
 
     auto final_stats = memsentry::get_stats();
     if (final_stats.total_allocation_count < baseline_stats.total_allocation_count + (NUM_THREADS * ITERATIONS_PER_THREAD)) {
+        std::cerr << "[FAIL] Allocation count mismatch\n";
         return 1;
     }
     if (final_stats.total_free_count < baseline_stats.total_free_count + (NUM_THREADS * ITERATIONS_PER_THREAD)) {
+        std::cerr << "[FAIL] Free count mismatch\n";
         return 1;
     }
 
