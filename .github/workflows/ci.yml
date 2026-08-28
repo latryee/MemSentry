@@ -35,7 +35,13 @@ jobs:
           -DMEMSENTRY_BUILD_EXAMPLES=ON
 
       - name: Build MemSentry
-        run: cmake --build build --config ${{ matrix.build_type }} --parallel
+        shell: bash
+        run: |
+          cmake --build build --config ${{ matrix.build_type }} --parallel || {
+            echo "=== BUILD FAILED, RETRYING VERBOSE ==="
+            cmake --build build --config ${{ matrix.build_type }} -- -v:d
+            exit 1
+          }
 
       - name: Run Tests
         run: ctest --test-dir build -C ${{ matrix.build_type }} --output-on-failure --verbose
