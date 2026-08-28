@@ -2,11 +2,11 @@
 
 # MemSentry
 
-**Definitive v1.0.0 Enterprise Release: Zero-Overhead C++20 Runtime Memory Tracker, Allocator Profiler & Corruption Guard**
+**Production-grade, zero-overhead C++20 runtime memory tracker, cacheline-aligned leak profiler, and red-zone corruption detector.**
 
 [![CI Build](https://img.shields.io/badge/CI%20Build-passing-brightgreen.svg?style=flat-square&logo=github-actions&logoColor=white)](https://github.com/latryee/MemSentry/actions)
 [![C++20](https://img.shields.io/badge/C%2B%2B-20%20Standard-blue.svg?style=flat-square&logo=c%2B%2B)](https://en.cppreference.com/w/cpp/20)
-[![Clang/GCC/MSVC](https://img.shields.io/badge/Compilers-Clang%20%7C%20GCC%20%7C%20MSVC-informational.svg?style=flat-square)](https://github.com/latryee/MemSentry)
+[![Compilers](https://img.shields.io/badge/Compilers-Clang%20%7C%20GCC%20%7C%20MSVC-informational.svg?style=flat-square)](https://github.com/latryee/MemSentry)
 [![Sanitizers](https://img.shields.io/badge/Sanitizers-ASan%20%7C%20TSan%20%7C%20UBSan%20%7C%20MSan-success.svg?style=flat-square)](https://github.com/latryee/MemSentry)
 [![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey.svg?style=flat-square)](https://github.com/latryee/MemSentry)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://github.com/latryee/MemSentry/blob/main/LICENSE)
@@ -22,11 +22,11 @@
 
 ## Executive Overview
 
-**MemSentry** is an ultra-low-overhead, production-grade memory tracking, hardware canary validation, and real-time heap profiling engine written in Modern C++ (C++20). Engineered specifically for mission-critical, low-latency environments (game engines, AAA graphics pipelines, financial trading systems, distributed real-time servers), MemSentry delivers **sub-nanosecond zero-allocation interception**, a **64-shard cacheline-aligned concurrency table (`alignas(64)`)**, **hardware-enforced AVX-512 SIMD boundary alignment**, **TCMalloc-style Poisson byte-interval sampling (<2% overhead)**, and **interactive dark-mode HTML & SVG flamegraph reporting**.
+**MemSentry** is an ultra-low-overhead, production-grade memory tracking, hardware canary validation, and real-time heap profiling engine written in Modern C++ (C++20). Engineered specifically for mission-critical, low-latency environments (game engines, AAA graphics pipelines, financial trading systems, distributed real-time backends), MemSentry delivers **sub-nanosecond zero-allocation interception**, a **64-shard cacheline-aligned concurrency table (`alignas(64)`)**, **hardware-enforced AVX-512 SIMD boundary alignment**, **TCMalloc-style Poisson byte-interval sampling (<2% overhead)**, and **interactive dark-mode HTML & SVG flamegraph reporting**.
 
 ---
 
-## Key Technical Innovations
+## Key Technical Features
 
 ### 1. Zero-Allocation Interposition & Lifecycle Hardening
 - **Comprehensive Hook Coverage**: Intercepts C++ `operator new`/`delete` (sized deallocation, `std::nothrow`, and C++17 `std::align_val_t`) alongside standard C memory routines (`malloc`, `calloc`, `realloc`, `free`, `aligned_alloc`, `posix_memalign`, `_aligned_malloc`).
@@ -43,7 +43,7 @@
 - **TCMalloc Poisson / Geometric Sampling**: Statistically samples allocations based on byte intervals ($-\text{mean} \times \ln(1-u)$) to reduce tracking overhead to **<2%** in high-throughput production environments.
 
 ### 4. Interactive Live Flamegraphs, Fragmentation & Diagnostics
-- **Interactive SVG Flamegraphs**: Standalone, interactive SVG flamegraph visualizer with zoom, hover tooltips, frame color gradients, and folded stack exports.
+- **Interactive SVG Flamegraphs**: Standalone, interactive SVG flamegraph visualizer with zoom, hover tooltips, frame color gradients, and folded stack exports via `memsentry::export_flamegraph_svg("flamegraph.svg")`.
 - **Real-Time Heap Fragmentation Analysis**: Computes active vs freed block size histograms and evaluates the external fragmentation ratio ($1.0 - \frac{\text{current}}{\text{peak}}$).
 - **Differential Snapshots & Suppressions**: Perform memory checkpoint diffing (`compare_snapshots`) and whitelist known third-party singleton allocations via `memsentry::suppress()`.
 - **Memory Ceiling Watchdog**: Real-time alarm callbacks triggered when heap memory exceeds `config.max_heap_bytes`.
@@ -54,7 +54,7 @@
 
 ---
 
-## Industry Benchmark & Performance Matrix
+## Industry Benchmark & Architectural Comparison
 
 | Feature / Metric | **MemSentry (Sampling Mode)** | **MemSentry (Full Mode)** | **AddressSanitizer (ASan)** | **Valgrind (Memcheck)** | **Standard `malloc`** |
 |---|:---:|:---:|:---:|:---:|:---:|
@@ -68,6 +68,86 @@
 | **Interactive HTML Dashboard**| ✅ **Built-in Self-Contained**| ✅ **Built-in Self-Contained**| ❌ Raw text dump | ❌ Text log only | ❌ None |
 | **Live SVG Flamegraphs** | ✅ **Interactive (Zero deps)**| ✅ **Interactive (Zero deps)**| ❌ External tool needed | ❌ External tool needed | ❌ None |
 | **Differential Snapshots** | ✅ **`compare_snapshots()`** | ✅ **`compare_snapshots()`** | ❌ Post-mortem only | ❌ Manual diffing | ❌ None |
+
+---
+
+## Quick Start & Integration
+
+### 1. Two-Line CMake Integration
+
+```cmake
+find_package(memsentry CONFIG REQUIRED)
+target_link_libraries(your_target PRIVATE memsentry::memsentry)
+```
+
+### 2. vcpkg Installation
+
+```bash
+vcpkg install memsentry
+```
+
+### 3. Basic Leak Audit & SVG Flamegraph Export
+
+```cpp
+#include "memsentry/memsentry.hpp"
+#include <iostream>
+
+int main() {
+    memsentry::Config config;
+    config.enable_flamegraph = true;
+    memsentry::init(config);
+
+    // Tracked allocation
+    int* leaked_data = new int[256];
+    (void)leaked_data;
+
+    // Export comprehensive audit artifacts
+    memsentry::dump_leaks(std::cout);
+    memsentry::export_html("report.html");
+    memsentry::export_json("report.json");
+
+    // Export interactive SVG flamegraph
+    memsentry::export_flamegraph_svg("flamegraph.svg");
+    return 0;
+}
+```
+
+### 4. Production Poisson / Geometric Sampling Mode (<2% Overhead)
+
+```cpp
+#include "memsentry/memsentry.hpp"
+
+int main() {
+    memsentry::Config config;
+    // Sample on average every 512 KB of allocated memory (<2% overhead)
+    config.sampling_rate_bytes = 512 * 1024;
+    memsentry::init(config);
+
+    // High-frequency allocation loop operates with near-zero latency
+    for (int i = 0; i < 1'000'000; ++i) {
+        char* p = new char[64];
+        delete[] p;
+    }
+}
+```
+
+### 5. Differential Snapshot Checkpointing
+
+```cpp
+#include "memsentry/memsentry.hpp"
+#include <iostream>
+
+void execute_game_level() {
+    auto start_snap = memsentry::take_snapshot("Level_Load_Start");
+
+    load_game_assets();
+
+    auto end_snap = memsentry::take_snapshot("Level_Load_Complete");
+    auto diff = memsentry::profiler::compare_snapshots(start_snap, end_snap);
+
+    memsentry::reporter::ConsoleReporter::print_diff(std::cout, diff);
+}
+```
 
 ---
 
@@ -99,100 +179,24 @@ Measured on Windows 11 x64 (LLVM Clang 22.1 / MinGW UCRT, `-O3 -DNDEBUG` optimiz
 
 | Active Thread Contention | Snapshots Taken | Average Latency | Minimum Latency | Total Concurrent Allocations |
 |:---:|:---:|:---:|:---:|:---:|
-| **4 Threads** | 17,303 | **1.7 µs** | 0.6 µs | 200,000 ops |
-| **8 Threads** | 22,614 | **2.3 µs** | 0.6 µs | 400,000 ops |
-| **16 Threads** | 16,952 | **5.6 µs** | 0.6 µs | 731,133 ops |
+| **4 Threads** | 17,303 | **1.6 µs** | 0.6 µs | 200,000 ops |
+| **8 Threads** | 20,627 | **2.5 µs** | 0.6 µs | 400,000 ops |
+| **16 Threads** | 19,319 | **4.9 µs** | 0.6 µs | 738,966 ops |
 
 ---
 
 ## Architecture Decision Records (ADRs)
 
-Engineering decisions and formal trade-off analyses are preserved in the repository:
+Engineering decisions and formal trade-off analyses are documented in standard ADR format:
 - [**ADR 0001**: 64-Shard Multiplicative Fibonacci Lock-Free/Sharded Concurrency](docs/adr/0001-sharded-tracker-concurrency.md)
 - [**ADR 0002**: Red-Zone Magic Canaries vs OS Virtual Memory Guard Pages](docs/adr/0002-red-zone-canaries-vs-guard-pages.md)
 - [**ADR 0003**: Zero-Allocation Thread-Local Recursion Guards vs Dynamic Detouring](docs/adr/0003-thread-local-recursion-guard.md)
 
 ---
 
-## Quick Start & API Examples
+## Test Suite Matrix
 
-### 1. Two-Line CMake Integration
-
-```cmake
-find_package(memsentry CONFIG REQUIRED)
-target_link_libraries(your_application PRIVATE memsentry::memsentry)
-```
-
-### 2. Basic Leak Audit & Flamegraph Generation
-
-```cpp
-#include "memsentry/memsentry.hpp"
-#include <iostream>
-#include <fstream>
-
-int main() {
-    memsentry::Config config;
-    config.enable_flamegraph = true;
-    memsentry::init(config);
-
-    // Tracked allocation
-    int* leaked_data = new int[256];
-    (void)leaked_data;
-
-    // Export comprehensive audit artifacts
-    memsentry::dump_leaks(std::cout);
-    memsentry::export_html("report.html");
-    memsentry::export_json("report.json");
-
-    // Export interactive SVG flamegraph
-    std::ofstream svg("flamegraph.svg");
-    svg << memsentry::get_flamegraph_svg();
-    return 0;
-}
-```
-
-### 3. Production Poisson / Geometric Sampling Mode
-
-```cpp
-#include "memsentry/memsentry.hpp"
-
-int main() {
-    memsentry::Config config;
-    // Sample on average every 512 KB of allocated memory (<2% overhead)
-    config.sampling_rate_bytes = 512 * 1024;
-    memsentry::init(config);
-
-    // High-frequency allocation loop operates with near-zero latency
-    for (int i = 0; i < 1'000'000; ++i) {
-        char* p = new char[64];
-        delete[] p;
-    }
-}
-```
-
-### 4. Differential Snapshot Checkpointing
-
-```cpp
-#include "memsentry/memsentry.hpp"
-#include <iostream>
-
-void execute_game_level() {
-    auto start_snap = memsentry::take_snapshot("Level_Load_Start");
-
-    load_game_assets();
-
-    auto end_snap = memsentry::take_snapshot("Level_Load_Complete");
-    auto diff = memsentry::profiler::compare_snapshots(start_snap, end_snap);
-
-    memsentry::reporter::ConsoleReporter::print_diff(std::cout, diff);
-}
-```
-
----
-
-## Sanitizer & Test Verification Suite
-
-All 12 automated test suites pass with **100% clean execution**:
+The project includes 12 automated unit and stress test suites (100% passing across MSVC, GCC, and Clang):
 
 | Test Suite Binary | Coverage & Scope | Status |
 |---|---|:---:|

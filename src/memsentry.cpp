@@ -11,6 +11,7 @@
 #include <atomic>
 #include <cmath>
 #include <cstdlib>
+#include <fstream>
 #include <iostream>
 #include <thread>
 
@@ -577,6 +578,17 @@ profiler::FragmentationReport get_fragmentation_report() {
 
 std::string get_flamegraph_svg(double width) {
     return Manager::instance().get_flamegraph_svg(width);
+}
+
+bool export_flamegraph_svg(const std::string& filepath, double width) {
+    std::string svg = get_flamegraph_svg(width);
+    core::RecursionGuard guard;
+    std::ofstream ofs(filepath);
+    if (!ofs.is_open()) {
+        return false;
+    }
+    ofs << svg;
+    return true;
 }
 
 }  // namespace memsentry

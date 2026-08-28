@@ -38,5 +38,6 @@ bool export_html(const std::string& filepath);
 profiler::HeapSnapshot take_snapshot(const std::string& label);
 [[nodiscard]] profiler::FragmentationReport get_fragmentation_report();
 [[nodiscard]] std::string get_flamegraph_svg(double width = 1000.0);
+bool export_flamegraph_svg(const std::string& filepath, double width = 1000.0);
 
 }  // namespace memsentry
