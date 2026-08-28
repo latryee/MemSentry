@@ -38,4 +38,4 @@ jobs:
         run: cmake --build build --config ${{ matrix.build_type }} --parallel
 
       - name: Run Tests
-        run: ctest --test-dir build -C ${{ matrix.build_type }} --output-on-failure --verbose
+        run: ctest --test-dir build -C ${{ matrix.build_type }} --output-on-failure --verbose --extra-verbose

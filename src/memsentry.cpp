@@ -167,7 +167,6 @@ public:
             return std::realloc(ptr, new_size);
         }
 
-        core::RecursionGuard guard;
         AllocationRecord old_record;
         if (!tracker_.find(ptr, &old_record)) {
             return std::realloc(ptr, new_size);
