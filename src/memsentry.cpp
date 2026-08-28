@@ -63,6 +63,22 @@ static CrashHandlerInstaller g_crash_installer;
 #include <unistd.h>
 #endif
 
+namespace memsentry::core {
+#if defined(_MSC_VER)
+__declspec(thread) int g_recursion_depth = 0;
+#else
+thread_local int g_recursion_depth = 0;
+#endif
+}
+
+namespace memsentry::profiler {
+#if defined(_MSC_VER)
+__declspec(thread) const char* g_active_scope_tag = nullptr;
+#else
+thread_local const char* g_active_scope_tag = nullptr;
+#endif
+}
+
 namespace memsentry {
 
 class Manager {

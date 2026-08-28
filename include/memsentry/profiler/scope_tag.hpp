@@ -2,7 +2,11 @@
 
 namespace memsentry::profiler {
 
-inline thread_local const char* g_active_scope_tag = nullptr;
+#if defined(_MSC_VER)
+extern __declspec(thread) const char* g_active_scope_tag;
+#else
+extern thread_local const char* g_active_scope_tag;
+#endif
 
 class ScopedTag {
 public:
