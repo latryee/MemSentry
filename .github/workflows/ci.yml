@@ -154,7 +154,7 @@ jobs:
           TSAN_OPTIONS: "suppress_equal_stacks=1:halt_on_error=0:second_deadlock_stack=1"
         run: |
           cmake --build build-tsan --parallel
-          ctest --test-dir build-tsan -R "test_fragmentation|test_sampling|test_watchdog|test_suppression" --output-on-failure
+          ctest --test-dir build-tsan -R "test_canary_race|test_tracker" --output-on-failure
 
   coverage:
     name: Code Coverage (GCC + Codecov)
