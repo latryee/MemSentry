@@ -1,6 +1,7 @@
 #pragma once
 
 #include "memsentry/config.hpp"
+#include "memsentry/core/msvc_debug_guard.hpp"
 #include "memsentry/profiler/fragmentation.hpp"
 #include "memsentry/profiler/histogram.hpp"
 #include "memsentry/profiler/scope_tag.hpp"

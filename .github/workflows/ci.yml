@@ -149,7 +149,7 @@ jobs:
           TSAN_OPTIONS: "suppress_equal_stacks=1:halt_on_error=1"
         run: |
           cmake --build build-tsan --parallel
-          ctest --test-dir build-tsan -E "test_canary|test_sanitizer_matrix|test_realloc" --output-on-failure
+          ctest --test-dir build-tsan -E "test_canary|test_sanitizer_matrix|test_realloc|test_canary_race" --output-on-failure
 
   coverage:
     name: Code Coverage (GCC + Codecov)

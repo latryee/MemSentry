@@ -1,5 +1,6 @@
 #pragma once
 
+#include "memsentry/core/msvc_debug_guard.hpp"
 #include "memsentry/types.hpp"
 
 #include <cstddef>
