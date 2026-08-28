@@ -21,9 +21,7 @@ void* raw_system_alloc(size_t size) noexcept {
 #if defined(_WIN32)
     return HeapAlloc(GetProcessHeap(), 0, size);
 #else
-    typedef void* (*real_malloc_t)(size_t);
-    static real_malloc_t real_malloc = (real_malloc_t)dlsym(RTLD_NEXT, "malloc");
-    return real_malloc ? real_malloc(size) : std::malloc(size);
+    return std::malloc(size);
 #endif
 }
 
@@ -33,12 +31,7 @@ void raw_system_free(void* ptr) noexcept {
 #if defined(_WIN32)
     HeapFree(GetProcessHeap(), 0, ptr);
 #else
-    typedef void (*real_free_t)(void*);
-    static real_free_t real_free = (real_free_t)dlsym(RTLD_NEXT, "free");
-    if (real_free)
-        real_free(ptr);
-    else
-        std::free(ptr);
+    std::free(ptr);
 #endif
 }
 
@@ -52,9 +45,7 @@ void* raw_system_realloc(void* ptr, size_t new_size) noexcept {
     }
     return HeapReAlloc(GetProcessHeap(), 0, ptr, new_size);
 #else
-    typedef void* (*real_realloc_t)(void*, size_t);
-    static real_realloc_t real_realloc = (real_realloc_t)dlsym(RTLD_NEXT, "realloc");
-    return real_realloc ? real_realloc(ptr, new_size) : std::realloc(ptr, new_size);
+    return std::realloc(ptr, new_size);
 #endif
 }
 

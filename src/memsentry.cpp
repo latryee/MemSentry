@@ -223,6 +223,7 @@ public:
         AllocationRecord record;
         auto status = tracker_.erase(user_ptr, &record);
         if (status == core::TrackerEraseStatus::SUCCESS) {
+            bool is_corrupted = false;
             if (config_.enable_canary && config_.canary_footer_size >= sizeof(uint64_t)) {
                 const uint8_t* footer_ptr = reinterpret_cast<const uint8_t*>(user_ptr) + record.requested_size;
                 CorruptionType cstatus = CorruptionType::NONE;
@@ -239,12 +240,15 @@ public:
                     }
                 }
                 if (cstatus != CorruptionType::NONE) {
+                    is_corrupted = true;
                     reporter::ConsoleReporter::print_corruption_alert(std::cerr, user_ptr, cstatus);
                 }
             }
             stats_.update_on_free(record.requested_size);
             free_hist_.record(record.requested_size);
-            core::raw_system_free(record.raw_ptr);
+            if (!is_corrupted) {
+                core::raw_system_free(record.raw_ptr);
+            }
         } else if (status == core::TrackerEraseStatus::DOUBLE_FREE_DETECTED) {
             reporter::ConsoleReporter::print_corruption_alert(std::cerr, user_ptr, CorruptionType::DOUBLE_FREE);
         } else {

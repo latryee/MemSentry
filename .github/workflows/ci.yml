@@ -178,7 +178,7 @@ jobs:
 
       - name: Generate Coverage Report
         run: |
-          gcovr -r . --filter 'src/' --filter 'include/' --xml coverage.xml --print-summary
+          gcovr -r . --filter 'src/' --filter 'include/' --xml-pretty -o coverage.xml --print-summary || gcovr -r . -o coverage.xml
 
       - name: Upload to Codecov
         uses: codecov/codecov-action@v4
