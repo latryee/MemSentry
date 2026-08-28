@@ -1,5 +1,6 @@
 #include "memsentry/profiler/snapshot.hpp"
 #include <unordered_set>
+#include <unordered_map>
 
 namespace memsentry::profiler {
 

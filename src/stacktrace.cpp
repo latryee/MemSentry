@@ -9,6 +9,7 @@
 #define NOMINMAX
 #include <windows.h>
 #include <dbghelp.h>
+#include <tchar.h>
 #if defined(_MSC_VER)
 #pragma comment(lib, "dbghelp.lib")
 #endif
