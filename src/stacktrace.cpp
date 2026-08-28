@@ -61,6 +61,20 @@ uint16_t StackTraceProvider::capture(void** out_frames, uint32_t max_depth, uint
     if (!out_frames || max_depth == 0) return 0;
 
 #if defined(_WIN32)
+#if defined(_MSC_VER)
+    __try {
+        USHORT captured = CaptureStackBackTrace(
+            static_cast<ULONG>(skip_frames),
+            static_cast<ULONG>(max_depth),
+            out_frames,
+            nullptr
+        );
+        return static_cast<uint16_t>(captured);
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER) {
+        return 0;
+    }
+#else
     USHORT captured = CaptureStackBackTrace(
         static_cast<ULONG>(skip_frames),
         static_cast<ULONG>(max_depth),
@@ -68,6 +82,7 @@ uint16_t StackTraceProvider::capture(void** out_frames, uint32_t max_depth, uint
         nullptr
     );
     return static_cast<uint16_t>(captured);
+#endif
 #elif defined(__linux__) || defined(__APPLE__)
     constexpr int MAX_CAPTURE = 64;
     int depth = static_cast<int>(max_depth + skip_frames);
