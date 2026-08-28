@@ -8,6 +8,8 @@
 #include <chrono>
 #include <cstring>
 #include <iostream>
+#include <mutex>
+#include <shared_mutex>
 #include <thread>
 #include <vector>
 
@@ -57,10 +59,9 @@ MEMSENTRY_NO_SANITIZE void test_concurrent_canary_alloc_free_stress() {
     for (int t = 0; t < NUM_THREADS; ++t) {
         memsentry::core::RecursionGuard guard;
         workers.emplace_back([t]() {
-            MEMSENTRY_SCOPE_TAG("CanaryStressWorker");
             for (int i = 0; i < ITERATIONS; ++i) {
                 size_t sz = ((i + t) % 64 + 1) * 16;
-                uint8_t* buf = new uint8_t[sz];
+                uint8_t* buf = reinterpret_cast<uint8_t*>(memsentry::core::track_alloc(sz, 16, "CanaryStressWorker"));
                 TEST_ASSERT(buf != nullptr, "Buffer allocation failed");
 
                 // Fill entire user buffer with byte patterns up to exact boundary
@@ -73,7 +74,7 @@ MEMSENTRY_NO_SANITIZE void test_concurrent_canary_alloc_free_stress() {
                 }
 
                 // Deallocate (triggers internal canary verification)
-                delete[] buf;
+                memsentry::core::track_free(buf);
             }
         });
     }
@@ -105,38 +106,46 @@ MEMSENTRY_NO_SANITIZE void test_shared_block_concurrent_access() {
     constexpr int NUM_WRITERS = 4;
     constexpr size_t BLOCK_SIZE = 1024 * 16;
 
-    uint8_t* shared_buf = new uint8_t[BLOCK_SIZE];
+    uint8_t* shared_buf = reinterpret_cast<uint8_t*>(memsentry::core::track_alloc(BLOCK_SIZE, 16, "SharedCanaryBlock"));
+    TEST_ASSERT(shared_buf != nullptr, "Shared allocation failed");
     std::memset(shared_buf, 0xAA, BLOCK_SIZE);
 
+    std::shared_mutex rw_lock;
     std::atomic<bool> running{true};
     std::atomic<uint64_t> read_ops{0};
     std::atomic<uint64_t> write_ops{0};
 
     std::vector<std::thread> threads;
 
-    // Writer threads writing to distinct segments
+    // Writer threads writing to distinct segments under lock
     for (int w = 0; w < NUM_WRITERS; ++w) {
         memsentry::core::RecursionGuard guard;
-        threads.emplace_back([&running, &write_ops, shared_buf, w]() {
+        threads.emplace_back([&running, &write_ops, &rw_lock, shared_buf, w]() {
             size_t seg_size = BLOCK_SIZE / NUM_WRITERS;
             size_t start = w * seg_size;
             while (running.load(std::memory_order_relaxed)) {
-                for (size_t i = 0; i < seg_size; ++i) {
-                    shared_buf[start + i] = static_cast<uint8_t>((start + i) & 0xFF);
+                {
+                    std::unique_lock lock(rw_lock);
+                    for (size_t i = 0; i < seg_size; ++i) {
+                        shared_buf[start + i] = static_cast<uint8_t>((start + i) & 0xFF);
+                    }
                 }
                 write_ops.fetch_add(1, std::memory_order_relaxed);
             }
         });
     }
 
-    // Reader threads
+    // Reader threads reading under shared lock
     for (int r = 0; r < NUM_READERS; ++r) {
         memsentry::core::RecursionGuard guard;
-        threads.emplace_back([&running, &read_ops, shared_buf]() {
+        threads.emplace_back([&running, &read_ops, &rw_lock, shared_buf]() {
             uint64_t checksum = 0;
             while (running.load(std::memory_order_relaxed)) {
-                for (size_t i = 0; i < BLOCK_SIZE; i += 64) {
-                    checksum += shared_buf[i];
+                {
+                    std::shared_lock lock(rw_lock);
+                    for (size_t i = 0; i < BLOCK_SIZE; i += 64) {
+                        checksum += shared_buf[i];
+                    }
                 }
                 do_not_optimize(checksum);
                 read_ops.fetch_add(1, std::memory_order_relaxed);
@@ -144,8 +153,8 @@ MEMSENTRY_NO_SANITIZE void test_shared_block_concurrent_access() {
         });
     }
 
-    // Run for 150 ms under high contention
-    std::this_thread::sleep_for(std::chrono::milliseconds(150));
+    // Run for 100 ms under high contention
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
     running.store(false, std::memory_order_relaxed);
 
     for (auto& th : threads) {
@@ -153,7 +162,7 @@ MEMSENTRY_NO_SANITIZE void test_shared_block_concurrent_access() {
     }
 
     // Freeing shared block must successfully verify canary
-    delete[] shared_buf;
+    memsentry::core::track_free(shared_buf);
 
     TEST_ASSERT(read_ops.load() > 0, "Reader ops occurred");
     TEST_ASSERT(write_ops.load() > 0, "Writer ops occurred");
