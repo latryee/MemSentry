@@ -41,19 +41,18 @@ target_include_directories(memsentry PUBLIC
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 
+if (MSVC)
+    add_compile_options(/EHsc /W3 /Zc:__cplusplus)
+else()
+    add_compile_options(-Wall -Wextra -Wno-unused-parameter)
+endif()
+
 if (WIN32)
     target_link_libraries(memsentry PUBLIC dbghelp Threads::Threads)
-    if (MSVC)
-        target_compile_options(memsentry PRIVATE /EHsc /W3 /Zc:__cplusplus)
-    else()
-        target_compile_options(memsentry PRIVATE -Wall -Wextra -Wno-unused-parameter)
-    endif()
 elseif (APPLE)
     target_link_libraries(memsentry PUBLIC Threads::Threads)
-    target_compile_options(memsentry PRIVATE -Wall -Wextra -Wno-unused-parameter)
 else()
     target_link_libraries(memsentry PUBLIC Threads::Threads ${CMAKE_DL_LIBS})
-    target_compile_options(memsentry PRIVATE -Wall -Wextra -Wno-unused-parameter)
 endif()
 
 option(MEMSENTRY_BUILD_EXAMPLES "Build MemSentry examples" ON)
