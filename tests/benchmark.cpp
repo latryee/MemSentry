@@ -110,6 +110,63 @@ void bench_multithreaded(int thread_count, uint64_t iterations_per_thread) {
     print_result({label, ms, total_ops, ops_per_sec, latency_ns});
 }
 
+void bench_snapshot_under_contention(int thread_count, uint64_t iterations_per_thread) {
+    memsentry::Config config;
+    config.enable_stacktrace = false;
+    config.enable_canary = false;
+    memsentry::init(config);
+
+    std::atomic<bool> running{true};
+    std::atomic<uint64_t> completed_allocs{0};
+    std::vector<std::thread> workers;
+    workers.reserve(thread_count);
+
+    for (int t = 0; t < thread_count; ++t) {
+        workers.emplace_back([&running, &completed_allocs, iterations_per_thread]() {
+            for (uint64_t i = 0; i < iterations_per_thread && running.load(std::memory_order_relaxed); ++i) {
+                size_t sz = ((i % 16) + 1) * 32;
+                char* p = new char[sz];
+                do_not_optimize(p);
+                delete[] p;
+                completed_allocs.fetch_add(1, std::memory_order_relaxed);
+            }
+        });
+    }
+
+    std::vector<double> snapshot_latencies_us;
+    snapshot_latencies_us.reserve(100);
+
+    auto start = std::chrono::high_resolution_clock::now();
+    while (std::chrono::duration<double, std::milli>(std::chrono::high_resolution_clock::now() - start).count() < 100.0 ||
+           snapshot_latencies_us.size() < 20) {
+        auto snap_start = std::chrono::high_resolution_clock::now();
+        auto snap = memsentry::take_snapshot("ContentionBenchmark");
+        do_not_optimize(snap.active_allocations.size());
+        auto snap_end = std::chrono::high_resolution_clock::now();
+        double us = std::chrono::duration<double, std::micro>(snap_end - snap_start).count();
+        snapshot_latencies_us.push_back(us);
+        if (completed_allocs.load(std::memory_order_relaxed) >= thread_count * iterations_per_thread) {
+            break;
+        }
+    }
+    running.store(false, std::memory_order_relaxed);
+
+    for (auto& w : workers) {
+        if (w.joinable()) w.join();
+    }
+
+    double total_us = std::accumulate(snapshot_latencies_us.begin(), snapshot_latencies_us.end(), 0.0);
+    double avg_us = snapshot_latencies_us.empty() ? 0.0 : total_us / snapshot_latencies_us.size();
+    double min_us = snapshot_latencies_us.empty() ? 0.0 : *std::min_element(snapshot_latencies_us.begin(), snapshot_latencies_us.end());
+    double max_us = snapshot_latencies_us.empty() ? 0.0 : *std::max_element(snapshot_latencies_us.begin(), snapshot_latencies_us.end());
+
+    std::cout << "  [" << thread_count << " Threads Contention] Snapshots: " << snapshot_latencies_us.size()
+              << " | Avg: " << std::fixed << std::setprecision(1) << avg_us << " us"
+              << " | Min: " << std::setprecision(1) << min_us << " us"
+              << " | Max: " << std::setprecision(1) << max_us << " us"
+              << " | Total Ops: " << completed_allocs.load() << "\n";
+}
+
 int main() {
     std::cout << "================================================================================\n";
     std::cout << "                     MemSentry Performance Benchmark Suite                      \n";
@@ -160,6 +217,14 @@ int main() {
     bench_multithreaded(4, 25000);
     bench_multithreaded(8, 25000);
 
+    std::cout << "\n[3] Snapshot Latency Under Concurrent Allocation Contention:\n";
+    std::cout << "--------------------------------------------------------------------------------\n";
+
+    bench_snapshot_under_contention(4, 50000);
+    bench_snapshot_under_contention(8, 50000);
+    bench_snapshot_under_contention(16, 50000);
+
     std::cout << "================================================================================\n";
     return 0;
 }
+

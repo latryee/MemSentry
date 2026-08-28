@@ -61,19 +61,11 @@ public:
         RecursionGuard guard;
         std::vector<AllocationRecord> result;
         
-        // Single-pass lock acquisition
         for (size_t i = 0; i < SHARD_COUNT; ++i) {
-            shards_[i].mtx.lock();
-        }
-
-        for (size_t i = 0; i < SHARD_COUNT; ++i) {
+            std::lock_guard<std::mutex> lock(shards_[i].mtx);
             for (const auto& pair : shards_[i].records) {
                 result.push_back(pair.second);
             }
-        }
-
-        for (size_t i = 0; i < SHARD_COUNT; ++i) {
-            shards_[i].mtx.unlock();
         }
 
         return result;

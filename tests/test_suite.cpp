@@ -88,9 +88,14 @@ struct alignas(64) AlignedBlock {
     uint64_t data[8];
 };
 
+struct alignas(128) AlignedBlock128 {
+    uint64_t data[16];
+};
+
 void test_aligned_alloc() {
+    // 64-byte alignment test
     void* raw_mem = ::operator new(sizeof(AlignedBlock), std::align_val_t{64});
-    TEST_ASSERT(raw_mem != nullptr, "aligned alloc succeeded");
+    TEST_ASSERT(raw_mem != nullptr, "aligned alloc 64 succeeded");
     auto* ptr = new (raw_mem) AlignedBlock();
     do_not_optimize(ptr);
     uintptr_t addr = reinterpret_cast<uintptr_t>(ptr);
@@ -99,6 +104,18 @@ void test_aligned_alloc() {
     do_not_optimize(ptr);
     ptr->~AlignedBlock();
     ::operator delete(raw_mem, std::align_val_t{64});
+
+    // 128-byte alignment test with canary
+    void* raw_mem128 = ::operator new(sizeof(AlignedBlock128), std::align_val_t{128});
+    TEST_ASSERT(raw_mem128 != nullptr, "aligned alloc 128 succeeded");
+    auto* ptr128 = new (raw_mem128) AlignedBlock128();
+    do_not_optimize(ptr128);
+    uintptr_t addr128 = reinterpret_cast<uintptr_t>(ptr128);
+    TEST_ASSERT((addr128 % 128) == 0, "pointer address must satisfy 128-byte alignment");
+
+    do_not_optimize(ptr128);
+    ptr128->~AlignedBlock128();
+    ::operator delete(raw_mem128, std::align_val_t{128});
 }
 
 void test_scoped_tagging() {

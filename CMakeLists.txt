@@ -91,6 +91,10 @@ if (MEMSENTRY_BUILD_TESTS)
     target_link_libraries(test_suite PRIVATE memsentry)
     add_test(NAME test_suite COMMAND $<TARGET_FILE:test_suite>)
 
+    add_executable(test_untracked_fallback tests/test_untracked_fallback.cpp)
+    target_link_libraries(test_untracked_fallback PRIVATE memsentry)
+    add_test(NAME test_untracked_fallback COMMAND $<TARGET_FILE:test_untracked_fallback>)
+
     add_executable(benchmark tests/benchmark.cpp)
     target_link_libraries(benchmark PRIVATE memsentry)
 endif()

@@ -37,6 +37,38 @@ jobs:
       - name: Build MemSentry
         run: cmake --build build --config ${{ matrix.build_type }} --parallel
 
+      - name: Verify Zero-Dependency (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          echo "Checking shared library dependencies for Linux binaries..."
+          for bin in build/test_suite build/test_tracker build/test_canary build/test_untracked_fallback; do
+            echo "Inspecting $bin:"
+            ldd "$bin"
+            unexpected=$(ldd "$bin" | grep -vE 'linux-vdso\.so|libstdc\+\+\.so|libgcc_s\.so|libc\.so|libm\.so|libpthread\.so|ld-linux' || true)
+            if [ -n "$unexpected" ]; then
+              echo "Error: Unexpected external dependencies found in $bin:"
+              echo "$unexpected"
+              exit 1
+            fi
+          done
+          echo "Zero-dependency check passed on Linux."
+
+      - name: Verify Zero-Dependency (macOS)
+        if: matrix.os == 'macos-latest'
+        run: |
+          echo "Checking dynamic library dependencies for macOS binaries..."
+          for bin in build/test_suite build/test_tracker build/test_canary build/test_untracked_fallback; do
+            echo "Inspecting $bin:"
+            otool -L "$bin"
+            unexpected=$(otool -L "$bin" | tail -n +2 | grep -vE 'libc\+\+\.1\.dylib|libSystem\.B\.dylib' || true)
+            if [ -n "$unexpected" ]; then
+              echo "Error: Unexpected external dependencies found in $bin:"
+              echo "$unexpected"
+              exit 1
+            fi
+          done
+          echo "Zero-dependency check passed on macOS."
+
       - name: Run Tests
         run: ctest --test-dir build -C ${{ matrix.build_type }} --output-on-failure --verbose
 

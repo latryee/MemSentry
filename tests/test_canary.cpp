@@ -40,6 +40,44 @@ int main() {
         return 1;
     }
 
+    // Over-aligned allocation test (64-byte and 128-byte alignment)
+    {
+        constexpr size_t OVER_ALIGN = 64;
+        constexpr size_t OVER_REQ_SIZE = 128;
+        alignas(128) uint8_t over_memory[1024] = {0};
+
+        void* over_user_ptr = init_block(over_memory, OVER_REQ_SIZE, OVER_ALIGN, FOOTER_SIZE, 2, "OverAligned", true);
+        if (!over_user_ptr) return 1;
+
+        uintptr_t user_addr = reinterpret_cast<uintptr_t>(over_user_ptr);
+        if ((user_addr % OVER_ALIGN) != 0) {
+            std::cerr << "[-] Over-aligned user pointer does not satisfy 64-byte alignment!\n";
+            return 1;
+        }
+
+        auto* over_header = get_header_from_raw_ptr(over_memory);
+        if (!over_header || over_header->magic != memsentry::CANARY_HEADER_MAGIC) {
+            return 1;
+        }
+
+        if (verify_canary(over_header, FOOTER_SIZE) != memsentry::CorruptionType::NONE) {
+            return 1;
+        }
+
+        // Corrupt canary footer immediately after user payload
+        uint8_t* over_footer = reinterpret_cast<uint8_t*>(over_user_ptr) + OVER_REQ_SIZE;
+        *over_footer ^= 0x55;
+        if (verify_canary(over_header, FOOTER_SIZE) != memsentry::CorruptionType::FOOTER_CORRUPTED) {
+            return 1;
+        }
+
+        // Restore and verify clean
+        *over_footer ^= 0x55;
+        if (verify_canary(over_header, FOOTER_SIZE) != memsentry::CorruptionType::NONE) {
+            return 1;
+        }
+    }
+
     std::cout << "[PASSED] Canary verification unit test completed successfully.\n";
     return 0;
 }
