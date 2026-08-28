@@ -35,7 +35,7 @@ jobs:
           -DMEMSENTRY_BUILD_EXAMPLES=ON
 
       - name: Build MemSentry
-        run: cmake --build build --config ${{ matrix.build_type }} --parallel --verbose
+        run: cmake --build build --config ${{ matrix.build_type }} --parallel
 
       - name: Run Tests
         run: ctest --test-dir build -C ${{ matrix.build_type }} --output-on-failure --verbose
