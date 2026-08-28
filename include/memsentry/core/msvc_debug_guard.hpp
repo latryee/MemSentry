@@ -17,5 +17,5 @@ struct MsvcDebugInitializer {
 
 inline MsvcDebugInitializer g_msvc_debug_initializer;
 
-}
+}  // namespace memsentry::core
 #endif

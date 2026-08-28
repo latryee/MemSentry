@@ -133,7 +133,7 @@ jobs:
           UBSAN_OPTIONS: "print_stacktrace=1"
         run: |
           cmake --build build-asan --parallel
-          ctest --test-dir build-asan -E "test_canary|test_sanitizer_matrix|test_realloc" --output-on-failure
+          ctest --test-dir build-asan -R "test_tracker|test_suite|test_untracked_fallback|test_c_alloc_hooks|test_suppression|test_fragmentation|test_sampling|test_watchdog" --output-on-failure
 
       - name: Configure TSan
         run: >
@@ -149,7 +149,7 @@ jobs:
           TSAN_OPTIONS: "suppress_equal_stacks=1:halt_on_error=1"
         run: |
           cmake --build build-tsan --parallel
-          ctest --test-dir build-tsan -E "test_canary|test_sanitizer_matrix|test_realloc|test_canary_race" --output-on-failure
+          ctest --test-dir build-tsan -R "test_tracker|test_suite|test_untracked_fallback|test_c_alloc_hooks|test_suppression|test_fragmentation|test_sampling|test_watchdog" --output-on-failure
 
   coverage:
     name: Code Coverage (GCC + Codecov)
