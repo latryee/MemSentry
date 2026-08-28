@@ -7,6 +7,7 @@
 #include <vector>
 #include <thread>
 #include <new>
+#include <cstdlib>
 
 static int g_failed_tests = 0;
 

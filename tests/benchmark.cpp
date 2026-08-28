@@ -6,6 +6,7 @@
 #include <chrono>
 #include <iomanip>
 #include <numeric>
+#include <cstdlib>
 
 struct BenchmarkResult {
     std::string name;

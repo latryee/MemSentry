@@ -125,14 +125,18 @@ StackFrame StackTraceProvider::resolve_frame(uintptr_t address) {
 
     DWORD64 displacement = 0;
     if (SymFromAddr(process, static_cast<DWORD64>(address), &displacement, symbol)) {
-        frame.symbol_name = symbol->Name;
+        if (symbol->Name && symbol->Name[0] != '\0') {
+            frame.symbol_name = symbol->Name;
+        }
     }
 
     IMAGEHLP_LINE64 line_info{};
     line_info.SizeOfStruct = sizeof(IMAGEHLP_LINE64);
     DWORD line_displacement = 0;
     if (SymGetLineFromAddr64(process, static_cast<DWORD64>(address), &line_displacement, &line_info)) {
-        frame.file_name = line_info.FileName;
+        if (line_info.FileName) {
+            frame.file_name = line_info.FileName;
+        }
         frame.line_number = line_info.LineNumber;
     }
 #elif defined(__linux__) || defined(__APPLE__)
