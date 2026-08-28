@@ -3,6 +3,7 @@
 #include <thread>
 #include <vector>
 #include <iostream>
+#include <cstddef>
 
 template <typename T>
 inline void do_not_optimize(T const& value) {

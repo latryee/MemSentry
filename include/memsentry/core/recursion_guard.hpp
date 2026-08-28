@@ -16,7 +16,7 @@ public:
     RecursionGuard() noexcept {
         if (g_tls_recursion_index != TLS_OUT_OF_INDEXES) {
             prev_ = TlsGetValue(g_tls_recursion_index);
-            TlsSetValue(g_tls_recursion_index, reinterpret_cast<void*>(1));
+            TlsSetValue(g_tls_recursion_index, reinterpret_cast<void*>(static_cast<uintptr_t>(1)));
         }
     }
 

@@ -1,5 +1,7 @@
 #include "memsentry/core/header.hpp"
 #include <iostream>
+#include <cstdint>
+#include <cstddef>
 
 int main() {
     using namespace memsentry::core;
