@@ -13,6 +13,7 @@
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <windows.h>
+#include <dbghelp.h>
 #if defined(_MSC_VER) && defined(_DEBUG)
 #include <crtdbg.h>
 #endif
@@ -25,19 +26,59 @@ static LONG WINAPI MemsentryCrashHandler(PEXCEPTION_POINTERS pExceptionInfo) {
     }
     char buffer[256];
     int len = snprintf(buffer, sizeof(buffer),
-        "\n[FATAL CRASH] ExceptionCode=0x%08lX Address=0x%p Flags=0x%08lX\n",
+        "\n[FATAL CRASH] ExceptionCode=0x%08lX Address=0x%p\n",
         static_cast<unsigned long>(code),
-        pExceptionInfo->ExceptionRecord->ExceptionAddress,
-        static_cast<unsigned long>(pExceptionInfo->ExceptionRecord->ExceptionFlags)
+        pExceptionInfo->ExceptionRecord->ExceptionAddress
     );
-    if (len > 0) {
+    HANDLE hErr = GetStdHandle(STD_ERROR_HANDLE);
+    if (hErr != INVALID_HANDLE_VALUE && hErr != nullptr && len > 0) {
         DWORD written = 0;
-        HANDLE hErr = GetStdHandle(STD_ERROR_HANDLE);
-        if (hErr != INVALID_HANDLE_VALUE && hErr != nullptr) {
-            WriteFile(hErr, buffer, static_cast<DWORD>(len), &written, nullptr);
-            FlushFileBuffers(hErr);
-        }
+        WriteFile(hErr, buffer, static_cast<DWORD>(len), &written, nullptr);
     }
+
+    HANDLE hProcess = GetCurrentProcess();
+    SymSetOptions(SYMOPT_LOAD_LINES | SYMOPT_UNDNAME | SYMOPT_DEFERRED_LOADS);
+    SymInitialize(hProcess, nullptr, TRUE);
+
+    CONTEXT ctx = *pExceptionInfo->ContextRecord;
+    STACKFRAME64 frame{};
+    frame.AddrPC.Offset = ctx.Rip;
+    frame.AddrPC.Mode = AddrModeFlat;
+    frame.AddrFrame.Offset = ctx.Rbp;
+    frame.AddrFrame.Mode = AddrModeFlat;
+    frame.AddrStack.Offset = ctx.Rsp;
+    frame.AddrStack.Mode = AddrModeFlat;
+
+    for (int i = 0; i < 16; ++i) {
+        if (!StackWalk64(IMAGE_FILE_MACHINE_AMD64, hProcess, GetCurrentThread(), &frame, &ctx, nullptr,
+                         SymFunctionTableAccess64, SymGetModuleBase64, nullptr)) {
+            break;
+        }
+        if (frame.AddrPC.Offset == 0) break;
+
+        alignas(SYMBOL_INFO) uint8_t sym_buf[sizeof(SYMBOL_INFO) + 256 * sizeof(TCHAR)]{};
+        auto* symbol = reinterpret_cast<SYMBOL_INFO*>(sym_buf);
+        symbol->SizeOfStruct = sizeof(SYMBOL_INFO);
+        symbol->MaxNameLen = 255;
+        DWORD64 disp = 0;
+
+        char line_buf[256];
+        if (SymFromAddr(hProcess, frame.AddrPC.Offset, &disp, symbol)) {
+            IMAGEHLP_LINE64 line_info{};
+            line_info.SizeOfStruct = sizeof(IMAGEHLP_LINE64);
+            DWORD line_disp = 0;
+            if (SymGetLineFromAddr64(hProcess, frame.AddrPC.Offset, &line_disp, &line_info)) {
+                snprintf(line_buf, sizeof(line_buf), "  #%d 0x%llX %s (%s:%lu)\n", i, frame.AddrPC.Offset, symbol->Name, line_info.FileName, line_info.LineNumber);
+            } else {
+                snprintf(line_buf, sizeof(line_buf), "  #%d 0x%llX %s\n", i, frame.AddrPC.Offset, symbol->Name);
+            }
+        } else {
+            snprintf(line_buf, sizeof(line_buf), "  #%d 0x%llX\n", i, frame.AddrPC.Offset);
+        }
+        DWORD wr = 0;
+        WriteFile(hErr, line_buf, static_cast<DWORD>(strlen(line_buf)), &wr, nullptr);
+    }
+    FlushFileBuffers(hErr);
     return EXCEPTION_CONTINUE_SEARCH;
 }
 
