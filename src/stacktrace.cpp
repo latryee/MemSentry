@@ -47,29 +47,17 @@ StackTraceProvider& StackTraceProvider::instance() noexcept {
     return *reinterpret_cast<StackTraceProvider*>(storage);
 }
 
-StackTraceProvider::StackTraceProvider() {
-    initialize();
-}
-
+StackTraceProvider::StackTraceProvider() = default;
 StackTraceProvider::~StackTraceProvider() {
     cleanup();
 }
 
 void StackTraceProvider::initialize() {
-    core::RecursionGuard guard;
-    std::lock_guard<std::mutex> lock(g_symbol_mutex);
-    if (initialized_) return;
-
-#if defined(_WIN32)
-    HANDLE process = GetCurrentProcess();
-    SymSetOptions(SYMOPT_LOAD_LINES | SYMOPT_UNDNAME | SYMOPT_DEFERRED_LOADS);
-    SymInitialize(process, nullptr, TRUE);
-#endif
-
-    initialized_ = true;
+    // Lazy initialization in resolve_frame to avoid early loader/symbol issues on MSVC Debug
 }
 
 void StackTraceProvider::cleanup() {
+    core::RecursionGuard guard;
     std::lock_guard<std::mutex> lock(g_symbol_mutex);
     if (!initialized_) return;
 
@@ -78,6 +66,7 @@ void StackTraceProvider::cleanup() {
 #endif
 
     initialized_ = false;
+    g_symbol_cache.clear();
 }
 
 uint16_t StackTraceProvider::capture(void** out_frames, uint32_t max_depth, uint32_t skip_frames) noexcept {
@@ -127,6 +116,11 @@ StackFrame StackTraceProvider::resolve_frame(uintptr_t address) {
 
 #if defined(_WIN32)
     HANDLE process = GetCurrentProcess();
+    if (!initialized_) {
+        SymSetOptions(SYMOPT_LOAD_LINES | SYMOPT_UNDNAME | SYMOPT_DEFERRED_LOADS);
+        SymInitialize(process, nullptr, TRUE);
+        initialized_ = true;
+    }
 
     alignas(SYMBOL_INFO) uint8_t buffer[sizeof(SYMBOL_INFO) + MAX_SYM_NAME * sizeof(TCHAR)]{};
     auto* symbol = reinterpret_cast<SYMBOL_INFO*>(buffer);
