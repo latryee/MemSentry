@@ -1,6 +1,8 @@
 #include "memsentry/stacktrace/stacktrace.hpp"
 #include "memsentry/core/recursion_guard.hpp"
+#include <atomic>
 #include <mutex>
+#include <thread>
 #include <unordered_map>
 #include <sstream>
 #include <iomanip>
@@ -26,19 +28,27 @@ namespace memsentry::stacktrace {
 static std::mutex g_symbol_mutex;
 static std::unordered_map<uintptr_t, StackFrame> g_symbol_cache;
 
+// File-scope statics to avoid MSVC magic statics guards inside the function.
+static alignas(64) uint8_t g_stp_storage[sizeof(StackTraceProvider)];
+static std::atomic<int> g_stp_init_state{0};
+
 StackTraceProvider& StackTraceProvider::instance() noexcept {
-    alignas(64) static uint8_t storage[sizeof(StackTraceProvider)];
-    static std::atomic<bool> initialized{false};
-    static std::mutex init_mtx;
-    if (!initialized.load(std::memory_order_acquire)) {
-        std::lock_guard<std::mutex> lock(init_mtx);
-        if (!initialized.load(std::memory_order_relaxed)) {
-            core::RecursionGuard guard;
-            new (storage) StackTraceProvider();
-            initialized.store(true, std::memory_order_release);
+    int state = g_stp_init_state.load(std::memory_order_acquire);
+    if (state == 2) {
+        return *reinterpret_cast<StackTraceProvider*>(g_stp_storage);
+    }
+
+    int expected = 0;
+    if (g_stp_init_state.compare_exchange_strong(expected, 1, std::memory_order_acq_rel)) {
+        core::RecursionGuard guard;
+        new (g_stp_storage) StackTraceProvider();
+        g_stp_init_state.store(2, std::memory_order_release);
+    } else {
+        while (g_stp_init_state.load(std::memory_order_acquire) != 2) {
+            // spin-wait
         }
     }
-    return *reinterpret_cast<StackTraceProvider*>(storage);
+    return *reinterpret_cast<StackTraceProvider*>(g_stp_storage);
 }
 
 StackTraceProvider::StackTraceProvider() {

@@ -245,20 +245,31 @@ private:
     MemoryStats stats_;
     core::ShardedTracker tracker_;
 };
+// File-scope statics to avoid MSVC magic statics guards inside the function.
+// Magic statics can trigger _Init_thread_header which may cause re-entry through operator new.
+static alignas(64) uint8_t g_manager_storage[sizeof(Manager)];
+// States: 0 = uninitialized, 1 = constructing, 2 = initialized
+static std::atomic<int> g_manager_init_state{0};
 
 Manager& Manager::instance() noexcept {
-    alignas(64) static uint8_t storage[sizeof(Manager)];
-    static std::atomic<bool> initialized{false};
-    static std::mutex init_mtx;
-    if (!initialized.load(std::memory_order_acquire)) {
-        std::lock_guard<std::mutex> lock(init_mtx);
-        if (!initialized.load(std::memory_order_relaxed)) {
-            core::RecursionGuard guard;
-            new (storage) Manager();
-            initialized.store(true, std::memory_order_release);
+    int state = g_manager_init_state.load(std::memory_order_acquire);
+    if (state == 2) {
+        return *reinterpret_cast<Manager*>(g_manager_storage);
+    }
+
+    // Try to become the constructing thread
+    int expected = 0;
+    if (g_manager_init_state.compare_exchange_strong(expected, 1, std::memory_order_acq_rel)) {
+        core::RecursionGuard guard;
+        new (g_manager_storage) Manager();
+        g_manager_init_state.store(2, std::memory_order_release);
+    } else {
+        // Another thread is constructing; spin-wait
+        while (g_manager_init_state.load(std::memory_order_acquire) != 2) {
+            std::this_thread::yield();
         }
     }
-    return *reinterpret_cast<Manager*>(storage);
+    return *reinterpret_cast<Manager*>(g_manager_storage);
 }
 
 void init(const Config& config) {
