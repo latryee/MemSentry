@@ -1,6 +1,7 @@
 #include "memsentry/memsentry.hpp"
 #include <vector>
 #include <string>
+#include <cstdint>
 
 struct TextureResource {
     int width = 1920;

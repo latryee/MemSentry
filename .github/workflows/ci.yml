@@ -35,13 +35,7 @@ jobs:
           -DMEMSENTRY_BUILD_EXAMPLES=ON
 
       - name: Build MemSentry
-        shell: pwsh
-        run: |
-          cmake --build build --config ${{ matrix.build_type }} -- -fl -flp:logfile=build.log
-          if ($LASTEXITCODE -ne 0) {
-            Get-Content build.log | Select-Object -Last 100
-            exit 1
-          }
+        run: cmake --build build --config ${{ matrix.build_type }} --parallel
 
       - name: Run Tests
         run: ctest --test-dir build -C ${{ matrix.build_type }} --output-on-failure --verbose

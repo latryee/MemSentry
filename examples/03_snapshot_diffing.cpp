@@ -1,5 +1,6 @@
 #include "memsentry/memsentry.hpp"
 #include <vector>
+#include <iostream>
 
 void process_request(int req_id) {
     MEMSENTRY_SCOPE_TAG("NetworkRequestHandler");
