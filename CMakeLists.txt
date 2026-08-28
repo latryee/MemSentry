@@ -43,6 +43,7 @@ target_include_directories(memsentry PUBLIC
 
 if (MSVC)
     add_compile_options(/EHsc /W3 /Zc:__cplusplus)
+    target_link_options(memsentry INTERFACE $<$<CXX_COMPILER_ID:MSVC>:/WHOLEARCHIVE:$<TARGET_FILE:memsentry>>)
 else()
     add_compile_options(-Wall -Wextra -Wno-unused-parameter)
 endif()

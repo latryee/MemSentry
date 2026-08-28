@@ -37,6 +37,9 @@ public:
         config_ = config;
         if (initialized_.exchange(true)) return;
 
+        volatile int anchor = core::ensure_hooks_linked();
+        (void)anchor;
+
         core::RecursionGuard guard;
         stacktrace::StackTraceProvider::instance().initialize();
 
@@ -91,9 +94,10 @@ public:
         record.thread_id = current_thread_id();
 
         if (config_.enable_stacktrace) {
+            uint32_t depth = std::min(config_.max_stack_depth, static_cast<uint32_t>(record.callstack.size()));
             record.frame_count = stacktrace::StackTraceProvider::instance().capture(
                 record.callstack.data(),
-                config_.max_stack_depth,
+                depth,
                 config_.stack_skip_frames
             );
         }

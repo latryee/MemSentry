@@ -2,6 +2,10 @@
 #include <new>
 #include <cstdlib>
 
+namespace memsentry::core {
+int g_hooks_anchor = 42;
+}
+
 void* operator new(std::size_t size) {
     void* ptr = memsentry::core::track_alloc(size);
     if (!ptr) throw std::bad_alloc();
@@ -71,6 +75,14 @@ void operator delete(void* ptr, std::align_val_t) noexcept {
 }
 
 void operator delete[](void* ptr, std::align_val_t) noexcept {
+    memsentry::core::track_free(ptr);
+}
+
+void operator delete(void* ptr, std::align_val_t, const std::nothrow_t&) noexcept {
+    memsentry::core::track_free(ptr);
+}
+
+void operator delete[](void* ptr, std::align_val_t, const std::nothrow_t&) noexcept {
     memsentry::core::track_free(ptr);
 }
 
