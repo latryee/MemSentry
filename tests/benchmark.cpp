@@ -203,11 +203,27 @@ int main() {
     auto r_full = bench_memsentry_config("MemSentry (+ Canary & Stacktrace)", cfg_full, ITERATIONS / 2);
     print_result(r_full);
 
+    memsentry::Config cfg_sample_10;
+    cfg_sample_10.enable_stacktrace = true;
+    cfg_sample_10.enable_canary = true;
+    cfg_sample_10.sampling_percentage = 10;
+    auto r_sample_10 = bench_memsentry_config("MemSentry (Sampling 10%)", cfg_sample_10, ITERATIONS);
+    print_result(r_sample_10);
+
+    memsentry::Config cfg_sample_1;
+    cfg_sample_1.enable_stacktrace = true;
+    cfg_sample_1.enable_canary = true;
+    cfg_sample_1.sampling_percentage = 1;
+    auto r_sample_1 = bench_memsentry_config("MemSentry (Sampling 1%)", cfg_sample_1, ITERATIONS);
+    print_result(r_sample_1);
+
     std::cout << "--------------------------------------------------------------------------------\n";
     std::cout << " Measured Overhead vs Baseline:\n";
     std::cout << "   - Minimal (Tracking only)     : " << std::fixed << std::setprecision(2) << (r_min.elapsed_ms / r_base.elapsed_ms) << "x runtime\n";
     std::cout << "   - With Red-Zone Canary        : " << std::fixed << std::setprecision(2) << (r_canary.elapsed_ms / r_base.elapsed_ms) << "x runtime\n";
     std::cout << "   - Full (Canary + Stacktrace)  : " << std::fixed << std::setprecision(2) << ((r_full.elapsed_ms * 2.0) / r_base.elapsed_ms) << "x runtime\n";
+    std::cout << "   - Sampling 10% (Production)   : " << std::fixed << std::setprecision(2) << (r_sample_10.elapsed_ms / r_base.elapsed_ms) << "x runtime\n";
+    std::cout << "   - Sampling 1% (Ultra-Fast)    : " << std::fixed << std::setprecision(2) << (r_sample_10.elapsed_ms / r_base.elapsed_ms) << "x runtime\n";
 
     std::cout << "\n[2] Multi-Threaded Throughput Scaling (64 Shards, 25,000 ops/thread):\n";
     std::cout << "--------------------------------------------------------------------------------\n";
