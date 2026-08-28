@@ -1,4 +1,5 @@
 #include "memsentry/stacktrace/stacktrace.hpp"
+#include "memsentry/core/recursion_guard.hpp"
 #include <mutex>
 #include <unordered_map>
 #include <sstream>
@@ -32,6 +33,7 @@ StackTraceProvider& StackTraceProvider::instance() noexcept {
     if (!initialized.load(std::memory_order_acquire)) {
         std::lock_guard<std::mutex> lock(init_mtx);
         if (!initialized.load(std::memory_order_relaxed)) {
+            core::RecursionGuard guard;
             new (storage) StackTraceProvider();
             initialized.store(true, std::memory_order_release);
         }
@@ -48,6 +50,7 @@ StackTraceProvider::~StackTraceProvider() {
 }
 
 void StackTraceProvider::initialize() {
+    core::RecursionGuard guard;
     std::lock_guard<std::mutex> lock(g_symbol_mutex);
     if (initialized_) return;
 
@@ -101,6 +104,7 @@ uint16_t StackTraceProvider::capture(void** out_frames, uint32_t max_depth, uint
 }
 
 StackFrame StackTraceProvider::resolve_frame(uintptr_t address) {
+    core::RecursionGuard guard;
     std::lock_guard<std::mutex> lock(g_symbol_mutex);
 
     auto it = g_symbol_cache.find(address);
@@ -125,7 +129,7 @@ StackFrame StackTraceProvider::resolve_frame(uintptr_t address) {
 
     DWORD64 displacement = 0;
     if (SymFromAddr(process, static_cast<DWORD64>(address), &displacement, symbol)) {
-        if (symbol->Name && symbol->Name[0] != '\0') {
+        if (symbol->Name[0] != '\0') {
             frame.symbol_name = symbol->Name;
         }
     }

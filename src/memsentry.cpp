@@ -27,22 +27,6 @@
 #include <unistd.h>
 #endif
 
-namespace memsentry::core {
-#if defined(_WIN32)
-DWORD g_tls_recursion_index = TLS_OUT_OF_INDEXES;
-#else
-__thread bool g_recursion_active = false;
-#endif
-}
-
-namespace memsentry::profiler {
-#if defined(_WIN32)
-DWORD g_tls_tag_index = TLS_OUT_OF_INDEXES;
-#else
-__thread const char* g_active_tag = nullptr;
-#endif
-}
-
 namespace memsentry {
 
 class Manager {
@@ -53,15 +37,7 @@ public:
         config_ = config;
         if (initialized_.exchange(true)) return;
 
-#if defined(_WIN32)
-        if (core::g_tls_recursion_index == TLS_OUT_OF_INDEXES) {
-            core::g_tls_recursion_index = TlsAlloc();
-        }
-        if (profiler::g_tls_tag_index == TLS_OUT_OF_INDEXES) {
-            profiler::g_tls_tag_index = TlsAlloc();
-        }
-#endif
-
+        core::RecursionGuard guard;
         stacktrace::StackTraceProvider::instance().initialize();
 
         if (config_.auto_report_on_exit) {
@@ -326,6 +302,9 @@ profiler::HeapSnapshot take_snapshot(const std::string& label) {
 namespace memsentry::core {
 
 void* track_alloc(size_t size, size_t alignment, const char* tag) noexcept {
+    if (core::RecursionGuard::is_active()) {
+        return std::malloc(size);
+    }
     if (!Manager::instance().is_initialized()) {
         Manager::instance().initialize({});
     }
@@ -333,10 +312,18 @@ void* track_alloc(size_t size, size_t alignment, const char* tag) noexcept {
 }
 
 void track_free(void* ptr) noexcept {
+    if (!ptr) return;
+    if (core::RecursionGuard::is_active()) {
+        std::free(ptr);
+        return;
+    }
     Manager::instance().deallocate(ptr);
 }
 
 void* track_realloc(void* ptr, size_t new_size) noexcept {
+    if (core::RecursionGuard::is_active()) {
+        return std::realloc(ptr, new_size);
+    }
     if (!Manager::instance().is_initialized()) {
         Manager::instance().initialize({});
     }
