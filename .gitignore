@@ -15,6 +15,8 @@ build/
 *.html
 *.json
 !compile_commands.json
+!vcpkg.json
+!vcpkg/**/vcpkg.json
 
 # IDEs & Editors
 .vs/

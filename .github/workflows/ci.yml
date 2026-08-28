@@ -7,27 +7,62 @@ on:
     branches: [ main, master ]
 
 jobs:
+  lint-and-format:
+    name: Lint & Format Check (clang-format & clang-tidy)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install LLVM / Clang Tools
+        run: sudo apt-get update && sudo apt-get install -y clang-format-16 clang-tidy-16
+
+      - name: Check Formatting
+        run: |
+          find include src examples tests -name "*.hpp" -o -name "*.cpp" | xargs clang-format-16 --dry-run --Werror
+
   build-and-test:
     name: ${{ matrix.os }} - ${{ matrix.compiler }} (${{ matrix.build_type }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        build_type: [Release, Debug]
         include:
           - os: ubuntu-latest
             compiler: gcc
-          - os: windows-latest
-            compiler: msvc
+            cc: gcc
+            cxx: g++
+            build_type: Release
+          - os: ubuntu-latest
+            compiler: clang
+            cc: clang
+            cxx: clang++
+            build_type: Release
+          - os: ubuntu-latest
+            compiler: gcc
+            cc: gcc
+            cxx: g++
+            build_type: Debug
           - os: macos-latest
             compiler: clang
+            cc: clang
+            cxx: clang++
+            build_type: Release
+          - os: windows-latest
+            compiler: msvc
+            build_type: Release
+          - os: windows-latest
+            compiler: msvc
+            build_type: Debug
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Configure CMake
+        env:
+          CC: ${{ matrix.cc }}
+          CXX: ${{ matrix.cxx }}
         run: >
           cmake -B build
           -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
@@ -41,14 +76,16 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: |
           echo "Checking shared library dependencies for Linux binaries..."
-          for bin in build/test_suite build/test_tracker build/test_canary build/test_untracked_fallback; do
-            echo "Inspecting $bin:"
-            ldd "$bin"
-            unexpected=$(ldd "$bin" | grep -vE 'linux-vdso\.so|libstdc\+\+\.so|libgcc_s\.so|libc\.so|libm\.so|libpthread\.so|ld-linux' || true)
-            if [ -n "$unexpected" ]; then
-              echo "Error: Unexpected external dependencies found in $bin:"
-              echo "$unexpected"
-              exit 1
+          for bin in build/test_suite build/test_tracker build/test_canary build/test_untracked_fallback build/test_c_alloc_hooks build/test_canary_race build/test_sanitizer_matrix build/test_suppression build/test_realloc build/test_fragmentation build/test_sampling build/test_watchdog; do
+            if [ -f "$bin" ]; then
+              echo "Inspecting $bin:"
+              ldd "$bin"
+              unexpected=$(ldd "$bin" | grep -vE 'linux-vdso\.so|libstdc\+\+\.so|libgcc_s\.so|libc\.so|libm\.so|libpthread\.so|ld-linux' || true)
+              if [ -n "$unexpected" ]; then
+                echo "Error: Unexpected external dependencies found in $bin:"
+                echo "$unexpected"
+                exit 1
+              fi
             fi
           done
           echo "Zero-dependency check passed on Linux."
@@ -57,14 +94,16 @@ jobs:
         if: matrix.os == 'macos-latest'
         run: |
           echo "Checking dynamic library dependencies for macOS binaries..."
-          for bin in build/test_suite build/test_tracker build/test_canary build/test_untracked_fallback; do
-            echo "Inspecting $bin:"
-            otool -L "$bin"
-            unexpected=$(otool -L "$bin" | tail -n +2 | grep -vE 'libc\+\+\.1\.dylib|libSystem\.B\.dylib' || true)
-            if [ -n "$unexpected" ]; then
-              echo "Error: Unexpected external dependencies found in $bin:"
-              echo "$unexpected"
-              exit 1
+          for bin in build/test_suite build/test_tracker build/test_canary build/test_untracked_fallback build/test_c_alloc_hooks build/test_canary_race build/test_sanitizer_matrix build/test_suppression build/test_realloc build/test_fragmentation build/test_sampling build/test_watchdog; do
+            if [ -f "$bin" ]; then
+              echo "Inspecting $bin:"
+              otool -L "$bin"
+              unexpected=$(otool -L "$bin" | tail -n +2 | grep -vE 'libc\+\+\.1\.dylib|libSystem\.B\.dylib' || true)
+              if [ -n "$unexpected" ]; then
+                echo "Error: Unexpected external dependencies found in $bin:"
+                echo "$unexpected"
+                exit 1
+              fi
             fi
           done
           echo "Zero-dependency check passed on macOS."
@@ -72,9 +111,73 @@ jobs:
       - name: Run Tests
         run: ctest --test-dir build -C ${{ matrix.build_type }} --output-on-failure --verbose
 
-      - name: Upload Test Logs on Failure
-        if: failure()
-        uses: actions/upload-artifact@v4
+  sanitizers:
+    name: Sanitizers (ASan, UBSan, TSan) - Linux Clang
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure ASan & UBSan
+        run: >
+          cmake -B build-asan
+          -DCMAKE_CXX_COMPILER=clang++
+          -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer"
+          -DCMAKE_BUILD_TYPE=Debug
+          -DMEMSENTRY_BUILD_TESTS=ON
+
+      - name: Build & Run ASan
+        run: |
+          cmake --build build-asan --parallel
+          ctest --test-dir build-asan --output-on-failure
+
+      - name: Configure TSan
+        run: >
+          cmake -B build-tsan
+          -DCMAKE_CXX_COMPILER=clang++
+          -DCMAKE_CXX_FLAGS="-fsanitize=thread -fno-omit-frame-pointer"
+          -DCMAKE_BUILD_TYPE=Debug
+          -DMEMSENTRY_BUILD_TESTS=ON
+
+      - name: Build & Run TSan
+        run: |
+          cmake --build build-tsan --parallel
+          ctest --test-dir build-tsan --output-on-failure
+
+  coverage:
+    name: Code Coverage (GCC + Codecov)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install lcov
+        run: sudo apt-get update && sudo apt-get install -y lcov
+
+      - name: Configure CMake with Coverage
+        run: >
+          cmake -B build-cov
+          -DCMAKE_CXX_COMPILER=g++
+          -DCMAKE_CXX_FLAGS="--coverage -fprofile-arcs -ftest-coverage -O0"
+          -DCMAKE_BUILD_TYPE=Debug
+          -DMEMSENTRY_BUILD_TESTS=ON
+
+      - name: Build Tests
+        run: cmake --build build-cov --parallel
+
+      - name: Execute Test Matrix for Coverage
+        run: ctest --test-dir build-cov --output-on-failure
+
+      - name: Capture & Filter Coverage Data
+        run: |
+          lcov --capture --directory build-cov --output-file coverage.info --ignore-errors mismatch,source
+          lcov --remove coverage.info '/usr/*' '*/tests/*' '*/examples/*' --output-file coverage_filtered.info --ignore-errors unused,source
+          lcov --list coverage_filtered.info
+
+      - name: Upload to Codecov
+        uses: codecov/codecov-action@v4
         with:
-          name: test-logs-${{ matrix.os }}-${{ matrix.build_type }}
-          path: build/Testing/Temporary/LastTest.log
+          files: coverage_filtered.info
+          flags: unittests
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}

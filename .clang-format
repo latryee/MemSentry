@@ -1,0 +1,38 @@
+---
+Language: Cpp
+BasedOnStyle: LLVM
+Standard: c++20
+
+# Indentation & Alignment
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+ColumnLimit: 120
+AccessModifierOffset: -4
+
+# Braces & Wrapping
+BreakBeforeBraces: Attach
+AllowShortFunctionsOnASingleLine: Inline
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: Never
+BreakBeforeBinaryOperators: None
+BreakBeforeTernaryOperators: true
+
+# Spacing & Pointers
+PointerAlignment: Left
+ReferenceAlignment: Left
+SpacesBeforeTrailingComments: 2
+SpaceAfterCStyleCast: false
+SpaceBeforeParens: ControlStatements
+
+# Includes
+SortIncludes: CaseSensitive
+IncludeBlocks: Regroup
+IncludeCategories:
+  - Regex: '^"memsentry/'
+    Priority: 1
+  - Regex: '^<[a-z_0-9]+>'
+    Priority: 2
+  - Regex: '.*'
+    Priority: 3
+...

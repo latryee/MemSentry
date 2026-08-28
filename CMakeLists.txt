@@ -1,11 +1,12 @@
 cmake_minimum_required(VERSION 3.16)
-project(memsentry VERSION 1.0.0 LANGUAGES CXX)
+project(memsentry VERSION 1.1.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 include(GNUInstallDirs)
+include(CMakePackageConfigHelpers)
 find_package(Threads REQUIRED)
 
 set(MEMSENTRY_SOURCES
@@ -24,10 +25,12 @@ set(MEMSENTRY_HEADERS
     include/memsentry/core/header.hpp
     include/memsentry/core/sharded_tracker.hpp
     include/memsentry/core/allocator_hooks.hpp
+    include/memsentry/core/suppression_engine.hpp
     include/memsentry/stacktrace/stacktrace.hpp
     include/memsentry/profiler/scope_tag.hpp
     include/memsentry/profiler/snapshot.hpp
     include/memsentry/profiler/histogram.hpp
+    include/memsentry/profiler/fragmentation.hpp
     include/memsentry/reporter/console_reporter.hpp
     include/memsentry/reporter/json_reporter.hpp
     include/memsentry/reporter/html_reporter.hpp
@@ -56,8 +59,44 @@ else()
     target_link_libraries(memsentry PUBLIC Threads::Threads ${CMAKE_DL_LIBS})
 endif()
 
+# Installation and CMake package config export
+install(TARGETS memsentry
+    EXPORT memsentryTargets
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+)
+
+install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+
+install(EXPORT memsentryTargets
+    FILE memsentryTargets.cmake
+    NAMESPACE memsentry::
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/memsentry
+)
+
+write_basic_package_version_file(
+    "${CMAKE_CURRENT_BINARY_DIR}/memsentryConfigVersion.cmake"
+    VERSION ${PROJECT_VERSION}
+    COMPATIBILITY SameMajorVersion
+)
+
+configure_package_config_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/memsentryConfig.cmake.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/memsentryConfig.cmake"
+    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/memsentry
+)
+
+install(FILES
+    "${CMAKE_CURRENT_BINARY_DIR}/memsentryConfig.cmake"
+    "${CMAKE_CURRENT_BINARY_DIR}/memsentryConfigVersion.cmake"
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/memsentry
+)
+
 option(MEMSENTRY_BUILD_EXAMPLES "Build MemSentry examples" ON)
 option(MEMSENTRY_BUILD_TESTS "Build MemSentry tests" ON)
+option(MEMSENTRY_BUILD_FUZZERS "Build libFuzzer targets" OFF)
 
 if (MEMSENTRY_BUILD_EXAMPLES)
     add_executable(01_basic_leak examples/01_basic_leak.cpp)
@@ -95,6 +134,45 @@ if (MEMSENTRY_BUILD_TESTS)
     target_link_libraries(test_untracked_fallback PRIVATE memsentry)
     add_test(NAME test_untracked_fallback COMMAND $<TARGET_FILE:test_untracked_fallback>)
 
+    add_executable(test_c_alloc_hooks tests/test_c_alloc_hooks.cpp)
+    target_link_libraries(test_c_alloc_hooks PRIVATE memsentry)
+    add_test(NAME test_c_alloc_hooks COMMAND $<TARGET_FILE:test_c_alloc_hooks>)
+
+    add_executable(test_canary_race tests/test_canary_race.cpp)
+    target_link_libraries(test_canary_race PRIVATE memsentry)
+    add_test(NAME test_canary_race COMMAND $<TARGET_FILE:test_canary_race>)
+
+    add_executable(test_sanitizer_matrix tests/test_sanitizer_matrix.cpp)
+    target_link_libraries(test_sanitizer_matrix PRIVATE memsentry)
+    add_test(NAME test_sanitizer_matrix COMMAND $<TARGET_FILE:test_sanitizer_matrix>)
+
+    add_executable(test_suppression tests/test_suppression.cpp)
+    target_link_libraries(test_suppression PRIVATE memsentry)
+    add_test(NAME test_suppression COMMAND $<TARGET_FILE:test_suppression>)
+
+    add_executable(test_realloc tests/test_realloc.cpp)
+    target_link_libraries(test_realloc PRIVATE memsentry)
+    add_test(NAME test_realloc COMMAND $<TARGET_FILE:test_realloc>)
+
+    add_executable(test_fragmentation tests/test_fragmentation.cpp)
+    target_link_libraries(test_fragmentation PRIVATE memsentry)
+    add_test(NAME test_fragmentation COMMAND $<TARGET_FILE:test_fragmentation>)
+
+    add_executable(test_sampling tests/test_sampling.cpp)
+    target_link_libraries(test_sampling PRIVATE memsentry)
+    add_test(NAME test_sampling COMMAND $<TARGET_FILE:test_sampling>)
+
+    add_executable(test_watchdog tests/test_watchdog.cpp)
+    target_link_libraries(test_watchdog PRIVATE memsentry)
+    add_test(NAME test_watchdog COMMAND $<TARGET_FILE:test_watchdog>)
+
     add_executable(benchmark tests/benchmark.cpp)
     target_link_libraries(benchmark PRIVATE memsentry)
+endif()
+
+if (MEMSENTRY_BUILD_FUZZERS)
+    add_executable(fuzz_allocator fuzz/fuzz_allocator.cpp)
+    target_compile_options(fuzz_allocator PRIVATE -fsanitize=fuzzer,address)
+    target_link_options(fuzz_allocator PRIVATE -fsanitize=fuzzer,address)
+    target_link_libraries(fuzz_allocator PRIVATE memsentry)
 endif()

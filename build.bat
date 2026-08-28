@@ -28,10 +28,21 @@ if defined CLANG_BIN (
     "!CLANG_BIN!" !CXXFLAGS! examples/04_buffer_overflow.cpp !SOURCES! -o bin/04_buffer_overflow.exe !LIBS!
     "!CLANG_BIN!" !CXXFLAGS! examples/demo.cpp !SOURCES! -o bin/demo.exe !LIBS!
 
-    echo [*] Compiling Tests and Benchmarks...
+    echo [*] Compiling Test Suites...
     "!CLANG_BIN!" !CXXFLAGS! tests/test_tracker.cpp !SOURCES! -o bin/test_tracker.exe !LIBS!
     "!CLANG_BIN!" !CXXFLAGS! tests/test_canary.cpp !SOURCES! -o bin/test_canary.exe !LIBS!
     "!CLANG_BIN!" !CXXFLAGS! tests/test_suite.cpp !SOURCES! -o bin/test_suite.exe !LIBS!
+    "!CLANG_BIN!" !CXXFLAGS! tests/test_untracked_fallback.cpp !SOURCES! -o bin/test_untracked_fallback.exe !LIBS!
+    "!CLANG_BIN!" !CXXFLAGS! tests/test_c_alloc_hooks.cpp !SOURCES! -o bin/test_c_alloc_hooks.exe !LIBS!
+    "!CLANG_BIN!" !CXXFLAGS! tests/test_canary_race.cpp !SOURCES! -o bin/test_canary_race.exe !LIBS!
+    "!CLANG_BIN!" !CXXFLAGS! tests/test_sanitizer_matrix.cpp !SOURCES! -o bin/test_sanitizer_matrix.exe !LIBS!
+    "!CLANG_BIN!" !CXXFLAGS! tests/test_suppression.cpp !SOURCES! -o bin/test_suppression.exe !LIBS!
+    "!CLANG_BIN!" !CXXFLAGS! tests/test_realloc.cpp !SOURCES! -o bin/test_realloc.exe !LIBS!
+    "!CLANG_BIN!" !CXXFLAGS! tests/test_fragmentation.cpp !SOURCES! -o bin/test_fragmentation.exe !LIBS!
+    "!CLANG_BIN!" !CXXFLAGS! tests/test_sampling.cpp !SOURCES! -o bin/test_sampling.exe !LIBS!
+    "!CLANG_BIN!" !CXXFLAGS! tests/test_watchdog.cpp !SOURCES! -o bin/test_watchdog.exe !LIBS!
+
+    echo [*] Compiling Benchmark Suite...
     "!CLANG_BIN!" !CXXFLAGS! -O3 tests/benchmark.cpp !SOURCES! -o bin/benchmark.exe !LIBS!
 
     echo =======================================================
@@ -65,6 +76,15 @@ echo [*] Compiling Tests and Benchmarks...
 cl %CXXFLAGS% tests\test_tracker.cpp %SOURCES% /Fe:bin\test_tracker.exe /link %LIBS%
 cl %CXXFLAGS% tests\test_canary.cpp %SOURCES% /Fe:bin\test_canary.exe /link %LIBS%
 cl %CXXFLAGS% tests\test_suite.cpp %SOURCES% /Fe:bin\test_suite.exe /link %LIBS%
+cl %CXXFLAGS% tests\test_untracked_fallback.cpp %SOURCES% /Fe:bin\test_untracked_fallback.exe /link %LIBS%
+cl %CXXFLAGS% tests\test_c_alloc_hooks.cpp %SOURCES% /Fe:bin\test_c_alloc_hooks.exe /link %LIBS%
+cl %CXXFLAGS% tests\test_canary_race.cpp %SOURCES% /Fe:bin\test_canary_race.exe /link %LIBS%
+cl %CXXFLAGS% tests\test_sanitizer_matrix.cpp %SOURCES% /Fe:bin\test_sanitizer_matrix.exe /link %LIBS%
+cl %CXXFLAGS% tests\test_suppression.cpp %SOURCES% /Fe:bin\test_suppression.exe /link %LIBS%
+cl %CXXFLAGS% tests\test_realloc.cpp %SOURCES% /Fe:bin\test_realloc.exe /link %LIBS%
+cl %CXXFLAGS% tests\test_fragmentation.cpp %SOURCES% /Fe:bin\test_fragmentation.exe /link %LIBS%
+cl %CXXFLAGS% tests\test_sampling.cpp %SOURCES% /Fe:bin\test_sampling.exe /link %LIBS%
+cl %CXXFLAGS% tests\test_watchdog.cpp %SOURCES% /Fe:bin\test_watchdog.exe /link %LIBS%
 cl %CXXFLAGS% tests\benchmark.cpp %SOURCES% /Fe:bin\benchmark.exe /link %LIBS%
 
 del *.obj >nul 2>&1
