@@ -40,12 +40,14 @@ jobs:
 
       - name: Build MemSentry (Windows)
         if: runner.os == 'Windows'
+        run: cmake --build build --config ${{ matrix.build_type }} -- -fl -flp:logfile=build.log
+
+      - name: Print Build Log on Failure
+        if: failure() && runner.os == 'Windows'
         shell: pwsh
         run: |
-          cmake --build build --config ${{ matrix.build_type }} -- -fl -flp:logfile=build.log
-          if ($LASTEXITCODE -ne 0) {
-            Get-Content build.log | Where-Object { $_ -match "error " } | ForEach-Object { Write-Host "::error::$($_)" }
-            exit 1
+          if (Test-Path build.log) {
+            Get-Content build.log | Select-Object -Last 100
           }
 
       - name: Run Tests
