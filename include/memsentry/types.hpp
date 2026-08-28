@@ -10,13 +10,27 @@
 
 namespace memsentry {
 
+// 64-bit cryptographic magic constants for red-zone bounds validation
 inline constexpr uint64_t CANARY_HEADER_MAGIC = 0xDEADBEEFCAFEBABEULL;
 inline constexpr uint64_t CANARY_FOOTER_MAGIC = 0xBAADF00D5EADC0DEULL;
+inline constexpr uint64_t CANARY_FREED_MAGIC  = 0xDEADDEADDEADDEADULL;
 inline constexpr size_t DEFAULT_ALIGNMENT = 16;
+inline constexpr size_t AVX512_ALIGNMENT = 64;
 
-enum class ReportFormat : uint8_t { CONSOLE_ANSI = 0, JSON, HTML };
+enum class ReportFormat : uint8_t {
+    CONSOLE_ANSI = 0,
+    JSON,
+    HTML
+};
 
-enum class CorruptionType : uint8_t { NONE = 0, HEADER_CORRUPTED, FOOTER_CORRUPTED, DOUBLE_FREE, UNTRACKED_POINTER };
+enum class CorruptionType : uint8_t {
+    NONE = 0,
+    HEADER_CORRUPTED,
+    FOOTER_CORRUPTED,
+    DOUBLE_FREE,
+    USE_AFTER_FREE,
+    UNTRACKED_POINTER
+};
 
 struct StackFrame {
     uintptr_t address = 0;

@@ -1,3 +1,5 @@
+#include "memsentry/profiler/flamegraph.hpp"
+#include "memsentry/profiler/fragmentation.hpp"
 #include "memsentry/profiler/histogram.hpp"
 #include "memsentry/reporter/console_reporter.hpp"
 #include "memsentry/reporter/html_reporter.hpp"
@@ -77,12 +79,19 @@ void ConsoleReporter::print_summary(std::ostream& os, const MemoryStatsSnapshot&
            << format_bytes(leak_bytes) << ")\033[0m\n";
     }
 
+    double frag_ratio = 0.0;
+    if (stats.peak_allocated_bytes > 0) {
+        frag_ratio = 1.0 - (static_cast<double>(stats.current_allocated_bytes) /
+                            static_cast<double>(stats.peak_allocated_bytes));
+    }
+
     os << "--------------------------------------------------------------------------------\n";
     os << " Total Allocations   : " << stats.total_allocation_count << " (" << format_bytes(stats.total_allocated_bytes)
        << ")\n";
     os << " Total Deallocations : " << stats.total_free_count << " (" << format_bytes(stats.total_freed_bytes) << ")\n";
     os << " Peak Heap Usage     : " << format_bytes(stats.peak_allocated_bytes) << "\n";
     os << " Active Heap Usage   : " << format_bytes(stats.current_allocated_bytes) << "\n";
+    os << " Heap Frag. Ratio    : " << std::fixed << std::setprecision(1) << (frag_ratio * 100.0) << " %\n";
     os << "\033[1;36m================================================================================\033[0m\n\n";
 }
 
@@ -101,7 +110,7 @@ void ConsoleReporter::print_leaks(std::ostream& os, const std::vector<Allocation
            << rec.requested_size << " bytes\033[0m"
            << " | Addr: 0x" << std::hex << reinterpret_cast<uintptr_t>(rec.user_ptr) << std::dec << " | Tag: ["
            << (rec.tag ? rec.tag : "General") << "]"
-           << " | Thread: " << rec.thread_id << "\n";
+           << " | Align: " << rec.alignment << " | Thread: " << rec.thread_id << "\n";
 
         if (rec.frame_count > 0) {
             auto frames = provider.resolve(rec.callstack.data(), rec.frame_count);
@@ -147,6 +156,9 @@ void ConsoleReporter::print_corruption_alert(std::ostream& os, const void* ptr, 
     case CorruptionType::DOUBLE_FREE:
         os << "Double free detected\n";
         break;
+    case CorruptionType::USE_AFTER_FREE:
+        os << "Use after free detected\n";
+        break;
     case CorruptionType::UNTRACKED_POINTER:
         os << "Freeing pointer never allocated by allocator\n";
         break;
@@ -165,12 +177,19 @@ std::string JsonReporter::serialize(const MemoryStatsSnapshot& stats, const std:
     for (const auto& rec : records)
         total_leak_bytes += rec.requested_size;
 
+    double frag_ratio = 0.0;
+    if (stats.peak_allocated_bytes > 0) {
+        frag_ratio = 1.0 - (static_cast<double>(stats.current_allocated_bytes) /
+                            static_cast<double>(stats.peak_allocated_bytes));
+    }
+
     ss << "{\n";
     ss << "  \"summary\": {\n";
     ss << "    \"total_allocated_bytes\": " << stats.total_allocated_bytes << ",\n";
     ss << "    \"total_freed_bytes\": " << stats.total_freed_bytes << ",\n";
     ss << "    \"current_allocated_bytes\": " << stats.current_allocated_bytes << ",\n";
     ss << "    \"peak_allocated_bytes\": " << stats.peak_allocated_bytes << ",\n";
+    ss << "    \"external_fragmentation_ratio\": " << frag_ratio << ",\n";
     ss << "    \"total_allocations\": " << stats.total_allocation_count << ",\n";
     ss << "    \"total_frees\": " << stats.total_free_count << ",\n";
     ss << "    \"leak_count\": " << records.size() << ",\n";
@@ -187,6 +206,7 @@ std::string JsonReporter::serialize(const MemoryStatsSnapshot& stats, const std:
         ss << "      \"address\": \"" << addr_ss.str() << "\",\n";
         ss << "      \"requested_size\": " << rec.requested_size << ",\n";
         ss << "      \"total_size\": " << rec.total_size << ",\n";
+        ss << "      \"alignment\": " << rec.alignment << ",\n";
         ss << "      \"thread_id\": " << rec.thread_id << ",\n";
         ss << "      \"tag\": \"" << json_escape(rec.tag ? rec.tag : "General") << "\",\n";
         ss << "      \"stacktrace\": [\n";
@@ -230,8 +250,17 @@ std::string HtmlReporter::generate(const MemoryStatsSnapshot& stats, const std::
     for (const auto& rec : records)
         total_leak_bytes += rec.requested_size;
 
+    double frag_ratio = 0.0;
+    if (stats.peak_allocated_bytes > 0) {
+        frag_ratio = 1.0 - (static_cast<double>(stats.current_allocated_bytes) /
+                            static_cast<double>(stats.peak_allocated_bytes));
+    }
+
     profiler::AllocationHistogram hist;
     hist.feed(records);
+
+    auto root = profiler::FlamegraphGenerator::build_tree(records);
+    std::string flamegraph_svg = profiler::FlamegraphGenerator::generate_svg(root, 1000.0);
 
     ss << "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n";
     ss << "<meta charset=\"UTF-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n";
@@ -239,68 +268,73 @@ std::string HtmlReporter::generate(const MemoryStatsSnapshot& stats, const std::
     ss << "<style>\n";
     ss << "* { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe "
           "UI', Roboto, Helvetica, Arial, sans-serif; }\n";
-    ss << "body { background-color: #0d1117; color: #c9d1d9; padding: 24px; }\n";
+    ss << "body { background-color: #0d1117; color: #c9d1d9; padding: 24px; line-height: 1.5; }\n";
     ss << "header { margin-bottom: 24px; display: flex; align-items: center; justify-content: space-between; "
           "border-bottom: 1px solid #30363d; padding-bottom: 16px; }\n";
     ss << "h1 { font-size: 24px; color: #58a6ff; display: flex; align-items: center; gap: 8px; }\n";
-    ss << ".badge { padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; }\n";
+    ss << ".badge { padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }\n";
     ss << ".badge-clean { background-color: #238636; color: #ffffff; }\n";
     ss << ".badge-leak { background-color: #da3633; color: #ffffff; }\n";
-    ss << ".grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; "
+    ss << ".grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; "
           "margin-bottom: 24px; }\n";
-    ss << ".card { background-color: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 16px; }\n";
-    ss << ".card-title { font-size: 13px; color: #8b949e; text-transform: uppercase; margin-bottom: 6px; }\n";
+    ss << ".card { background-color: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }\n";
+    ss << ".card-title { font-size: 12px; color: #8b949e; text-transform: uppercase; margin-bottom: 6px; font-weight: 600; }\n";
     ss << ".card-value { font-size: 22px; font-weight: 700; color: #f0f6fc; }\n";
     ss << ".section { background-color: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 20px; "
           "margin-bottom: 24px; }\n";
     ss << ".section h2 { font-size: 16px; color: #f0f6fc; margin-bottom: 16px; border-bottom: 1px solid #21262d; "
-          "padding-bottom: 8px; }\n";
+          "padding-bottom: 8px; display: flex; align-items: center; justify-content: space-between; }\n";
+    ss << ".flamegraph-container { width: 100%; overflow-x: auto; background-color: #0d1117; border-radius: 6px; padding: 12px; border: 1px solid #30363d; }\n";
     ss << ".histogram-bar { display: flex; align-items: center; margin-bottom: 8px; font-size: 13px; }\n";
     ss << ".histogram-label { width: 140px; color: #8b949e; }\n";
     ss << ".histogram-track { flex-grow: 1; background-color: #21262d; height: 16px; border-radius: 4px; overflow: "
           "hidden; margin: 0 12px; }\n";
-    ss << ".histogram-fill { height: 100%; background: linear-gradient(90deg, #1f6feb, #58a6ff); border-radius: 4px; "
-          "}\n";
-    ss << ".histogram-val { width: 80px; text-align: right; color: #c9d1d9; }\n";
+    ss << ".histogram-fill { height: 100%; background: linear-gradient(90deg, #1f6feb, #58a6ff); border-radius: 4px; }\n";
+    ss << ".histogram-val { width: 100px; text-align: right; color: #c9d1d9; }\n";
     ss << "table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 13px; }\n";
     ss << "th { background-color: #21262d; color: #8b949e; text-align: left; padding: 10px 12px; border-bottom: 1px "
-          "solid #30363d; }\n";
+          "solid #30363d; font-weight: 600; }\n";
     ss << "td { padding: 10px 12px; border-bottom: 1px solid #21262d; }\n";
     ss << "tr:hover { background-color: #1c2128; cursor: pointer; }\n";
-    ss << ".tag-pill { background-color: #388bfd26; color: #58a6ff; padding: 2px 8px; border-radius: 6px; font-size: "
-          "11px; }\n";
-    ss << ".stacktrace { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: "
-          "12px; color: #8b949e; padding: 8px 16px; background-color: #0d1117; display: none; }\n";
-    ss << ".stack-line { margin: 3px 0; }\n";
-    ss << ".stack-sym { color: #f0f6fc; }\n";
+    ss << ".tag-pill { background-color: #388bfd26; color: #58a6ff; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 500; }\n";
+    ss << ".stacktrace { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 12px; color: #8b949e; padding: 12px 16px; background-color: #0d1117; display: none; }\n";
+    ss << ".stack-line { margin: 4px 0; }\n";
+    ss << ".stack-sym { color: #f0f6fc; font-weight: 500; }\n";
     ss << ".stack-loc { color: #7ee787; }\n";
-    ss << "input[type=\"text\"] { background-color: #0d1117; border: 1px solid #30363d; border-radius: 6px; color: "
-          "#c9d1d9; padding: 8px 12px; width: 300px; margin-bottom: 12px; }\n";
+    ss << "input[type=\"text\"] { background-color: #0d1117; border: 1px solid #30363d; border-radius: 6px; color: #c9d1d9; padding: 8px 12px; width: 320px; margin-bottom: 12px; outline: none; }\n";
+    ss << "input[type=\"text\"]:focus { border-color: #58a6ff; }\n";
     ss << "</style>\n</head>\n<body>\n";
 
     ss << "<header>\n";
-    ss << "  <h1>MemSentry Heap Audit</h1>\n";
+    ss << "  <h1><svg width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"currentColor\"><path d=\"M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z\"/></svg> MemSentry Enterprise Audit</h1>\n";
     ss << "  <div>"
-       << (records.empty() ? "<span class=\"badge badge-clean\">CLEAN: NO LEAKS</span>"
-                           : "<span class=\"badge badge-leak\">LEAKS DETECTED</span>")
+       << (records.empty() ? "<span class=\"badge badge-clean\">CLEAN: ZERO LEAKS</span>"
+                            : "<span class=\"badge badge-leak\">LEAKS DETECTED</span>")
        << "</div>\n";
     ss << "</header>\n";
 
     ss << "<div class=\"grid\">\n";
-    ss << "  <div class=\"card\"><div class=\"card-title\">Total Leaked</div><div class=\"card-value\" "
-          "style=\"color:#f85149;\">"
+    ss << "  <div class=\"card\"><div class=\"card-title\">Total Leaked</div><div class=\"card-value\" style=\"color:#f85149;\">"
        << format_bytes(total_leak_bytes) << "</div></div>\n";
-    ss << "  <div class=\"card\"><div class=\"card-title\">Active Leaks</div><div class=\"card-value\" "
-          "style=\"color:#f85149;\">"
+    ss << "  <div class=\"card\"><div class=\"card-title\">Active Leaks</div><div class=\"card-value\" style=\"color:#f85149;\">"
        << records.size() << "</div></div>\n";
     ss << "  <div class=\"card\"><div class=\"card-title\">Peak Heap</div><div class=\"card-value\">"
        << format_bytes(stats.peak_allocated_bytes) << "</div></div>\n";
+    ss << "  <div class=\"card\"><div class=\"card-title\">External Frag.</div><div class=\"card-value\">"
+       << std::fixed << std::setprecision(1) << (frag_ratio * 100.0) << " %</div></div>\n";
     ss << "  <div class=\"card\"><div class=\"card-title\">Lifetime Allocations</div><div class=\"card-value\">"
        << stats.total_allocation_count << "</div></div>\n";
     ss << "  <div class=\"card\"><div class=\"card-title\">Lifetime Frees</div><div class=\"card-value\">"
        << stats.total_free_count << "</div></div>\n";
     ss << "</div>\n";
 
+    // Interactive Flamegraph Section
+    ss << "<div class=\"section\">\n";
+    ss << "  <h2>Live Memory Flamegraph</h2>\n";
+    ss << "  <div class=\"flamegraph-container\">\n" << flamegraph_svg << "  </div>\n";
+    ss << "</div>\n";
+
+    // Allocation Size Distribution Section
     ss << "<div class=\"section\">\n";
     ss << "  <h2>Allocation Size Distribution</h2>\n";
     uint64_t max_bucket_count = 1;
@@ -319,28 +353,26 @@ std::string HtmlReporter::generate(const MemoryStatsSnapshot& stats, const std::
     }
     ss << "</div>\n";
 
+    // Unreleased Blocks Table Section
     ss << "<div class=\"section\">\n";
-    ss << "  <h2>Unreleased Memory Blocks</h2>\n";
-    ss << "  <input type=\"text\" id=\"searchBox\" placeholder=\"Filter by tag, address or size...\" "
-          "onkeyup=\"filterTable()\">\n";
+    ss << "  <h2>Unreleased Memory Blocks (" << records.size() << ")</h2>\n";
+    ss << "  <input type=\"text\" id=\"searchBox\" placeholder=\"Filter by symbol, file, tag or address...\" onkeyup=\"filterTable()\">\n";
     ss << "  <table id=\"leaksTable\">\n";
-    ss << "    "
-          "<thead><tr><th>ID</th><th>Address</th><th>Size</th><th>Tag</th><th>Thread</th><th>Frames</th></tr></"
-          "thead>\n";
+    ss << "    <thead><tr><th>ID</th><th>Address</th><th>Size</th><th>Align</th><th>Tag</th><th>Thread</th><th>Frames</th></tr></thead>\n";
     ss << "    <tbody>\n";
 
     for (size_t i = 0; i < records.size(); ++i) {
         const auto& rec = records[i];
         ss << "    <tr onclick=\"toggleTrace(" << i << ")\">\n";
         ss << "      <td>#" << rec.allocation_id << "</td>\n";
-        ss << "      <td><code>0x" << std::hex << reinterpret_cast<uintptr_t>(rec.user_ptr) << std::dec
-           << "</code></td>\n";
+        ss << "      <td><code>0x" << std::hex << reinterpret_cast<uintptr_t>(rec.user_ptr) << std::dec << "</code></td>\n";
         ss << "      <td><strong>" << rec.requested_size << " B</strong></td>\n";
+        ss << "      <td>" << rec.alignment << " B</td>\n";
         ss << "      <td><span class=\"tag-pill\">" << (rec.tag ? rec.tag : "General") << "</span></td>\n";
         ss << "      <td>" << rec.thread_id << "</td>\n";
         ss << "      <td>" << rec.frame_count << " frames (click to expand)</td>\n";
         ss << "    </tr>\n";
-        ss << "    <tr id=\"trace-" << i << "\" class=\"stacktrace\"><td colspan=\"6\">\n";
+        ss << "    <tr id=\"trace-" << i << "\" class=\"stacktrace\"><td colspan=\"7\">\n";
 
         if (rec.frame_count > 0) {
             auto frames = provider.resolve(rec.callstack.data(), rec.frame_count);

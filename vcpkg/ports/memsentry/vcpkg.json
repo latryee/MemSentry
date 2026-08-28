@@ -1,7 +1,7 @@
 {
   "name": "memsentry",
-  "version": "1.1.0",
-  "description": "High-Performance C++20 Memory Leak Detector, Red-Zone Canary Guard & Heap Profiler",
+  "version": "1.0.0",
+  "description": "Enterprise-Grade C++20 Runtime Memory Tracker, Cacheline-Aligned Leak Profiler & Red-Zone Canary Corruption Detector",
   "homepage": "https://github.com/latryee/MemSentry",
   "license": "MIT",
   "dependencies": []

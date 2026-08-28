@@ -21,7 +21,12 @@ struct Config {
     ReportFormat report_format{ReportFormat::CONSOLE_ANSI};
     std::string export_path{""};
 
-    // Sampling Mode (%N Sampling for Production Profiling)
+    // Live Profiler & Flamegraphs
+    bool enable_flamegraph{true};
+
+    // Poisson / Geometric Allocation Sampling (Zero-Overhead Production Mode)
+    // When sampling_rate_bytes > 0, Poisson byte-interval sampling (TCMalloc style) is used.
+    uint64_t sampling_rate_bytes{0};
     uint32_t sampling_percentage{100};
     uint32_t sample_every_n{1};
 

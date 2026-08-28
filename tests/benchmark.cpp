@@ -86,6 +86,7 @@ void bench_multithreaded(int thread_count, uint64_t iterations_per_thread) {
     threads.reserve(thread_count);
 
     for (int t = 0; t < thread_count; ++t) {
+        memsentry::core::RecursionGuard guard;
         threads.emplace_back([iterations_per_thread]() {
             for (uint64_t i = 0; i < iterations_per_thread; ++i) {
                 size_t sz = ((i % 16) + 1) * 32;
@@ -122,6 +123,7 @@ void bench_snapshot_under_contention(int thread_count, uint64_t iterations_per_t
     workers.reserve(thread_count);
 
     for (int t = 0; t < thread_count; ++t) {
+        memsentry::core::RecursionGuard guard;
         workers.emplace_back([&running, &completed_allocs, iterations_per_thread]() {
             for (uint64_t i = 0; i < iterations_per_thread && running.load(std::memory_order_relaxed); ++i) {
                 size_t sz = ((i % 16) + 1) * 32;

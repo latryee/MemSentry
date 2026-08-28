@@ -2,6 +2,7 @@
 
 #include "memsentry/config.hpp"
 #include "memsentry/core/msvc_debug_guard.hpp"
+#include "memsentry/profiler/flamegraph.hpp"
 #include "memsentry/profiler/fragmentation.hpp"
 #include "memsentry/profiler/histogram.hpp"
 #include "memsentry/profiler/scope_tag.hpp"
@@ -36,5 +37,6 @@ bool export_html(const std::string& filepath);
 
 profiler::HeapSnapshot take_snapshot(const std::string& label);
 [[nodiscard]] profiler::FragmentationReport get_fragmentation_report();
+[[nodiscard]] std::string get_flamegraph_svg(double width = 1000.0);
 
 }  // namespace memsentry

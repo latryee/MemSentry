@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(memsentry VERSION 1.1.0 LANGUAGES CXX)
+project(memsentry VERSION 1.0.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -9,9 +9,12 @@ include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 find_package(Threads REQUIRED)
 
-option(MEMSENTRY_ENABLE_ASAN "Enable Address & UB Sanitizers" OFF)
-option(MEMSENTRY_ENABLE_TSAN "Enable ThreadSanitizer" OFF)
-option(MEMSENTRY_ENABLE_COVERAGE "Enable GCC Code Coverage" OFF)
+# Sanitizer Matrix Options
+option(MEMSENTRY_ENABLE_ASAN "Enable AddressSanitizer (ASan)" OFF)
+option(MEMSENTRY_ENABLE_TSAN "Enable ThreadSanitizer (TSan)" OFF)
+option(MEMSENTRY_ENABLE_UBSAN "Enable UndefinedBehaviorSanitizer (UBSan)" OFF)
+option(MEMSENTRY_ENABLE_MSAN "Enable MemorySanitizer (MSan)" OFF)
+option(MEMSENTRY_ENABLE_COVERAGE "Enable GCC/Clang Code Coverage" OFF)
 
 if (MEMSENTRY_ENABLE_ASAN)
     add_compile_options(-fsanitize=address,undefined -fno-omit-frame-pointer)
@@ -21,6 +24,16 @@ endif()
 if (MEMSENTRY_ENABLE_TSAN)
     add_compile_options(-fsanitize=thread -fno-omit-frame-pointer)
     add_link_options(-fsanitize=thread)
+endif()
+
+if (MEMSENTRY_ENABLE_UBSAN)
+    add_compile_options(-fsanitize=undefined -fno-omit-frame-pointer)
+    add_link_options(-fsanitize=undefined)
+endif()
+
+if (MEMSENTRY_ENABLE_MSAN)
+    add_compile_options(-fsanitize=memory -fno-omit-frame-pointer)
+    add_link_options(-fsanitize=memory)
 endif()
 
 if (MEMSENTRY_ENABLE_COVERAGE)
@@ -45,11 +58,13 @@ set(MEMSENTRY_HEADERS
     include/memsentry/core/sharded_tracker.hpp
     include/memsentry/core/allocator_hooks.hpp
     include/memsentry/core/suppression_engine.hpp
+    include/memsentry/core/msvc_debug_guard.hpp
     include/memsentry/stacktrace/stacktrace.hpp
     include/memsentry/profiler/scope_tag.hpp
     include/memsentry/profiler/snapshot.hpp
     include/memsentry/profiler/histogram.hpp
     include/memsentry/profiler/fragmentation.hpp
+    include/memsentry/profiler/flamegraph.hpp
     include/memsentry/reporter/console_reporter.hpp
     include/memsentry/reporter/json_reporter.hpp
     include/memsentry/reporter/html_reporter.hpp
@@ -67,7 +82,7 @@ if (MSVC)
     add_compile_options(/EHsc /W3 /Zc:__cplusplus /Zc:tlsGuards- /D_CRT_SECURE_NO_WARNINGS)
     target_link_options(memsentry INTERFACE $<$<CXX_COMPILER_ID:MSVC>:/FORCE:MULTIPLE>)
 else()
-    add_compile_options(-Wall -Wextra -Wno-unused-parameter)
+    add_compile_options(-Wall -Wextra -Wno-unused-parameter -fvisibility=hidden -fms-extensions)
 endif()
 
 if (WIN32)

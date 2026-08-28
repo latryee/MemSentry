@@ -101,6 +101,36 @@ void test_sampling_percentage() {
     memsentry::shutdown();
 }
 
+void test_poisson_geometric_sampling() {
+    memsentry::Config config;
+    config.enable_stacktrace = false;
+    config.sampling_rate_bytes = 4096;  // 4 KB mean sample interval
+    config.auto_report_on_exit = false;
+    memsentry::init(config);
+
+    constexpr int NUM_CHUNKS = 500;
+    constexpr size_t CHUNK_SIZE = 128;  // Total allocated = 64 KB
+    std::vector<uint8_t*> ptrs;
+    ptrs.reserve(NUM_CHUNKS);
+
+    for (int i = 0; i < NUM_CHUNKS; ++i) {
+        uint8_t* p = new uint8_t[CHUNK_SIZE];
+        do_not_optimize(p);
+        ptrs.push_back(p);
+    }
+
+    auto active = memsentry::get_active_allocations();
+    // 64 KB total / 4 KB interval = expected ~16 sampled allocations (statistically bounded between 4 and 40)
+    TEST_ASSERT(!active.empty(), "Poisson sampling must capture sample allocations");
+    TEST_ASSERT(active.size() < NUM_CHUNKS, "Poisson sampling must maintain overhead < 100%");
+
+    for (uint8_t* p : ptrs) {
+        delete[] p;
+    }
+
+    memsentry::shutdown();
+}
+
 int main() {
     std::cout << "==================================================\n";
     std::cout << "       MemSentry Sampling Mode Unit Tests         \n";
@@ -108,6 +138,7 @@ int main() {
 
     RUN_TEST(test_sampling_every_n);
     RUN_TEST(test_sampling_percentage);
+    RUN_TEST(test_poisson_geometric_sampling);
 
     std::cout << "==================================================\n" << std::flush;
     if (g_failed_tests == 0) {

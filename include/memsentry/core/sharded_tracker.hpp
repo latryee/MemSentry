@@ -1,5 +1,6 @@
 #pragma once
 
+#include "memsentry/core/recursion_guard.hpp"
 #include "memsentry/types.hpp"
 
 #include <array>
@@ -14,7 +15,11 @@ namespace memsentry::core {
 inline constexpr size_t SHARD_COUNT = 64;
 static_assert((SHARD_COUNT & (SHARD_COUNT - 1)) == 0, "SHARD_COUNT must be a power of 2");
 
-enum class TrackerEraseStatus : uint8_t { SUCCESS = 0, NOT_FOUND, DOUBLE_FREE_DETECTED };
+enum class TrackerEraseStatus : uint8_t {
+    SUCCESS = 0,
+    NOT_FOUND,
+    DOUBLE_FREE_DETECTED
+};
 
 class ShardedTracker {
 public:
@@ -29,6 +34,11 @@ public:
             return;
         size_t idx = get_shard_index(user_ptr);
         std::lock_guard<std::mutex> lock(shards_[idx].mtx);
+        for (auto& q : shards_[idx].quarantine) {
+            if (q == user_ptr) {
+                q = nullptr;
+            }
+        }
         shards_[idx].records[user_ptr] = std::move(record);
     }
 
@@ -114,7 +124,7 @@ private:
 
     static inline size_t get_shard_index(const void* ptr) noexcept {
         uintptr_t val = reinterpret_cast<uintptr_t>(ptr);
-        return ((val >> 4) ^ (val >> 10)) & (SHARD_COUNT - 1);
+        return ((val >> 4) * 0x9E3779B97F4A7C15ULL) & (SHARD_COUNT - 1);
     }
 
     std::array<Shard, SHARD_COUNT> shards_;

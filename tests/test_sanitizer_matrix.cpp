@@ -20,17 +20,7 @@ struct ScenarioResult {
     bool ubsan_equivalent;
 };
 
-static int g_failed_tests = 0;
 
-#define TEST_ASSERT(cond, msg)                                                                                         \
-    do {                                                                                                               \
-        if (!(cond)) {                                                                                                 \
-            std::cerr << "[-] ASSERTION FAILED: " << msg << " (" << __FILE__ << ":" << __LINE__ << ")\n"               \
-                      << std::flush;                                                                                   \
-            g_failed_tests++;                                                                                          \
-            return;                                                                                                    \
-        }                                                                                                              \
-    } while (0)
 
 template <typename T> inline void do_not_optimize(T const& value) {
 #if defined(_MSC_VER)

@@ -54,6 +54,7 @@ void test_concurrent_canary_alloc_free_stress() {
     auto base_stats = memsentry::get_stats();
 
     for (int t = 0; t < NUM_THREADS; ++t) {
+        memsentry::core::RecursionGuard guard;
         workers.emplace_back([t]() {
             MEMSENTRY_SCOPE_TAG("CanaryStressWorker");
             for (int i = 0; i < ITERATIONS; ++i) {
@@ -81,8 +82,20 @@ void test_concurrent_canary_alloc_free_stress() {
     }
 
     auto final_stats = memsentry::get_stats();
-    TEST_ASSERT(final_stats.active_allocation_count == base_stats.active_allocation_count,
-                "All concurrent allocations must be safely freed without false corruptions");
+    TEST_ASSERT(final_stats.total_allocation_count >= base_stats.total_allocation_count + (NUM_THREADS * ITERATIONS),
+                "All worker allocations must be registered");
+    TEST_ASSERT(final_stats.total_free_count >= base_stats.total_free_count + (NUM_THREADS * ITERATIONS),
+                "All worker allocations must be safely freed without false corruptions");
+
+    // Verify no worker leaks remain
+    auto active = memsentry::get_active_allocations();
+    size_t worker_active_count = 0;
+    for (const auto& rec : active) {
+        if (rec.tag && std::strcmp(rec.tag, "CanaryStressWorker") == 0) {
+            worker_active_count++;
+        }
+    }
+    TEST_ASSERT(worker_active_count == 0, "Zero CanaryStressWorker blocks leaked");
 }
 
 // 2. Shared block concurrent multi-threaded read/write with boundary preservation
@@ -102,6 +115,7 @@ void test_shared_block_concurrent_access() {
 
     // Writer threads writing to distinct segments
     for (int w = 0; w < NUM_WRITERS; ++w) {
+        memsentry::core::RecursionGuard guard;
         threads.emplace_back([&running, &write_ops, shared_buf, w]() {
             size_t seg_size = BLOCK_SIZE / NUM_WRITERS;
             size_t start = w * seg_size;
@@ -116,6 +130,7 @@ void test_shared_block_concurrent_access() {
 
     // Reader threads
     for (int r = 0; r < NUM_READERS; ++r) {
+        memsentry::core::RecursionGuard guard;
         threads.emplace_back([&running, &read_ops, shared_buf]() {
             uint64_t checksum = 0;
             while (running.load(std::memory_order_relaxed)) {

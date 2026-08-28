@@ -5,9 +5,11 @@
 #include "memsentry/core/recursion_guard.hpp"
 #include "memsentry/core/sharded_tracker.hpp"
 #include "memsentry/core/suppression_engine.hpp"
+#include "memsentry/profiler/flamegraph.hpp"
 #include "memsentry/stacktrace/stacktrace.hpp"
 
 #include <atomic>
+#include <cmath>
 #include <cstdlib>
 #include <iostream>
 #include <thread>
@@ -75,20 +77,83 @@ static CrashHandlerInstaller g_crash_installer;
 #endif
 
 namespace memsentry::core {
-#if defined(_MSC_VER)
-__declspec(thread) int g_recursion_depth = 0;
+#if defined(_WIN32)
+DWORD g_tls_guard_index = TlsAlloc();
 #else
 thread_local int g_recursion_depth = 0;
 #endif
 }  // namespace memsentry::core
 
 namespace memsentry::profiler {
-#if defined(_MSC_VER)
-__declspec(thread) const char* g_active_scope_tag = nullptr;
+#if defined(_WIN32)
+DWORD g_tls_tag_index = TlsAlloc();
 #else
 thread_local const char* g_active_scope_tag = nullptr;
 #endif
 }  // namespace memsentry::profiler
+
+namespace {
+// Fast zero-allocation thread-local PRNG for Poisson / Geometric Sampling
+#if defined(_WIN32)
+DWORD g_tls_rng_index = TlsAlloc();
+#else
+thread_local uint64_t tl_rng_state = 0;
+thread_local int64_t tl_bytes_until_sample = 0;
+#endif
+
+#if defined(_WIN32)
+DWORD g_tls_sample_index = TlsAlloc();
+#endif
+
+inline int64_t get_bytes_until_sample() noexcept {
+#if defined(_WIN32)
+    return reinterpret_cast<intptr_t>(TlsGetValue(g_tls_sample_index));
+#else
+    return tl_bytes_until_sample;
+#endif
+}
+
+inline void set_bytes_until_sample(int64_t val) noexcept {
+#if defined(_WIN32)
+    TlsSetValue(g_tls_sample_index, reinterpret_cast<LPVOID>(static_cast<intptr_t>(val)));
+#else
+    tl_bytes_until_sample = val;
+#endif
+}
+
+inline double next_uniform_double() noexcept {
+#if defined(_WIN32)
+    uintptr_t state = reinterpret_cast<uintptr_t>(TlsGetValue(g_tls_rng_index));
+    if (state == 0) {
+        state = 0x853c49e6748fea9bULL ^ static_cast<uint64_t>(GetCurrentThreadId());
+    }
+    state ^= (state << 13);
+    state ^= (state >> 7);
+    state ^= (state << 17);
+    TlsSetValue(g_tls_rng_index, reinterpret_cast<LPVOID>(state));
+    return static_cast<double>(state & 0x1FFFFFFFFFFFFFULL) / 9007199254740992.0;
+#else
+    if (tl_rng_state == 0) {
+        tl_rng_state = 0x853c49e6748fea9bULL ^ static_cast<uint64_t>(reinterpret_cast<uintptr_t>(&tl_rng_state));
+    }
+    tl_rng_state ^= (tl_rng_state << 13);
+    tl_rng_state ^= (tl_rng_state >> 7);
+    tl_rng_state ^= (tl_rng_state << 17);
+    return static_cast<double>(tl_rng_state & 0x1FFFFFFFFFFFFFULL) / 9007199254740992.0;
+#endif
+}
+
+inline int64_t next_geometric_interval(uint64_t mean_bytes) noexcept {
+    if (mean_bytes == 0)
+        return 0;
+    double u = next_uniform_double();
+    if (u <= 0.0)
+        u = 1e-10;
+    if (u >= 1.0)
+        u = 1.0 - 1e-10;
+    return static_cast<int64_t>(-static_cast<double>(mean_bytes) * std::log(1.0 - u)) + 1;
+}
+}  // namespace
 
 namespace memsentry {
 
@@ -139,45 +204,45 @@ public:
 
         uint64_t alloc_id = alloc_counter_.fetch_add(1, std::memory_order_relaxed);
 
-        // Sampling Mode Evaluation
-        if (config_.sample_every_n > 1) {
+        // 1. Poisson / Geometric Byte-Interval Sampling (TCMalloc style)
+        if (config_.sampling_rate_bytes > 0) {
+            int64_t bytes_until = get_bytes_until_sample();
+            if (bytes_until <= 0) {
+                bytes_until = next_geometric_interval(config_.sampling_rate_bytes);
+            }
+            if (static_cast<int64_t>(size) < bytes_until) {
+                set_bytes_until_sample(bytes_until - static_cast<int64_t>(size));
+                return core::raw_system_alloc(size);
+            }
+            set_bytes_until_sample(next_geometric_interval(config_.sampling_rate_bytes));
+        } else if (config_.sample_every_n > 1) {
+            // 2. Deterministic 1-in-N Sampling
             if ((alloc_id % config_.sample_every_n) != 0) {
                 return core::raw_system_alloc(size);
             }
         } else if (config_.sampling_percentage < 100) {
+            // 3. Percentage Sampling
             if ((alloc_id % 100) >= config_.sampling_percentage) {
                 return core::raw_system_alloc(size);
             }
         }
 
         size_t footer_size = config_.enable_canary ? config_.canary_footer_size : 0;
-        size_t align = (alignment > DEFAULT_ALIGNMENT) ? alignment : DEFAULT_ALIGNMENT;
-        size_t extra_align = (align > DEFAULT_ALIGNMENT) ? align : 0;
-        size_t total_size = size + footer_size + extra_align;
-        if (total_size < size)
+        size_t eff_align = (alignment > alignof(std::max_align_t)) ? alignment : alignof(std::max_align_t);
+        size_t total_size = core::calculate_total_size(size, eff_align, footer_size);
+        if (total_size == 0)
             return nullptr;
 
         void* raw_ptr = core::raw_system_alloc(total_size);
         if (!raw_ptr)
             return nullptr;
 
-        void* user_ptr = raw_ptr;
-        if (extra_align > 0) {
-            uintptr_t raw_addr = reinterpret_cast<uintptr_t>(raw_ptr);
-            uintptr_t user_addr = (raw_addr + (align - 1)) & ~(align - 1);
-            user_ptr = reinterpret_cast<void*>(user_addr);
-        }
-
-        if (config_.enable_canary && footer_size >= sizeof(uint64_t)) {
-            uint8_t* footer_ptr = reinterpret_cast<uint8_t*>(user_ptr) + size;
-            for (size_t i = 0; i < footer_size; i += sizeof(uint64_t)) {
-                size_t copy_len = (footer_size - i < sizeof(uint64_t)) ? (footer_size - i) : sizeof(uint64_t);
-                std::memcpy(footer_ptr + i, &CANARY_FOOTER_MAGIC, copy_len);
-            }
-        }
-
         const char* active_tag = profiler::ScopedTag::current();
         const char* final_tag = tag ? tag : (active_tag ? active_tag : config_.default_tag);
+
+        uint32_t tid = current_thread_id();
+        void* user_ptr = core::init_block(raw_ptr, size, eff_align, footer_size, alloc_id, final_tag,
+                                          config_.enable_canary, tid);
 
         AllocationRecord record;
         record.allocation_id = alloc_id;
@@ -185,10 +250,10 @@ public:
         record.raw_ptr = raw_ptr;
         record.requested_size = size;
         record.total_size = total_size;
-        record.alignment = alignment;
+        record.alignment = eff_align;
         record.tag = final_tag;
         record.timestamp = std::chrono::system_clock::now();
-        record.thread_id = current_thread_id();
+        record.thread_id = tid;
 
         if (config_.enable_stacktrace) {
             uint32_t depth = std::min(config_.max_stack_depth, static_cast<uint32_t>(record.callstack.size()));
@@ -214,8 +279,16 @@ public:
         if (!user_ptr)
             return;
 
-        if (core::RecursionGuard::is_active() || !initialized_.load(std::memory_order_relaxed)) {
-            core::raw_system_free(user_ptr);
+        if (core::RecursionGuard::is_active()) {
+            auto* candidate = core::get_header_from_user_ptr(user_ptr);
+            if (candidate) {
+                if (candidate->magic == CANARY_FREED_MAGIC) {
+                    return;
+                }
+                core::raw_system_free(candidate);
+            } else {
+                core::raw_system_free(user_ptr);
+            }
             return;
         }
 
@@ -224,35 +297,38 @@ public:
         AllocationRecord record;
         auto status = tracker_.erase(user_ptr, &record);
         if (status == core::TrackerEraseStatus::SUCCESS) {
-            bool is_corrupted = false;
-            if (config_.enable_canary && config_.canary_footer_size >= sizeof(uint64_t)) {
-                const uint8_t* footer_ptr = reinterpret_cast<const uint8_t*>(user_ptr) + record.requested_size;
-                CorruptionType cstatus = CorruptionType::NONE;
-                for (size_t i = 0; i < config_.canary_footer_size; i += sizeof(uint64_t)) {
-                    uint64_t val = 0;
-                    size_t copy_len = (config_.canary_footer_size - i < sizeof(uint64_t))
-                                          ? (config_.canary_footer_size - i)
-                                          : sizeof(uint64_t);
-                    std::memcpy(&val, footer_ptr + i, copy_len);
-                    uint64_t expected = CANARY_FOOTER_MAGIC;
-                    if (std::memcmp(&val, &expected, copy_len) != 0) {
-                        cstatus = CorruptionType::FOOTER_CORRUPTED;
-                        break;
-                    }
-                }
-                if (cstatus != CorruptionType::NONE) {
-                    is_corrupted = true;
-                    reporter::ConsoleReporter::print_corruption_alert(std::cerr, user_ptr, cstatus);
-                }
+            size_t footer_size = config_.enable_canary ? config_.canary_footer_size : 0;
+            auto* header = core::get_header_from_raw_ptr(record.raw_ptr);
+            CorruptionType cstatus = core::verify_canary(header, footer_size);
+
+            if (cstatus != CorruptionType::NONE) {
+                reporter::ConsoleReporter::print_corruption_alert(std::cerr, user_ptr, cstatus);
             }
+
             stats_.update_on_free(record.requested_size);
             free_hist_.record(record.requested_size);
-            if (!is_corrupted) {
+
+            if (cstatus == CorruptionType::NONE) {
+                core::poison_block(header, footer_size);
                 core::raw_system_free(record.raw_ptr);
             }
         } else if (status == core::TrackerEraseStatus::DOUBLE_FREE_DETECTED) {
             reporter::ConsoleReporter::print_corruption_alert(std::cerr, user_ptr, CorruptionType::DOUBLE_FREE);
         } else {
+            // Check if user_ptr is an already-freed or untracked tracked block
+            auto* candidate = core::get_header_from_user_ptr(user_ptr);
+            if (candidate) {
+                if (candidate->magic == CANARY_FREED_MAGIC) {
+                    reporter::ConsoleReporter::print_corruption_alert(std::cerr, user_ptr, CorruptionType::DOUBLE_FREE);
+                    return;
+                }
+                if (candidate->magic == CANARY_HEADER_MAGIC) {
+                    core::poison_block(candidate, config_.canary_footer_size);
+                    core::raw_system_free(candidate);
+                    return;
+                }
+            }
+            // Truly a raw untracked system allocation
             core::raw_system_free(user_ptr);
         }
     }
@@ -274,20 +350,10 @@ public:
             return core::raw_system_realloc(ptr, new_size);
         }
 
-        if (config_.enable_canary && config_.canary_footer_size >= sizeof(uint64_t)) {
-            const uint8_t* footer_ptr = reinterpret_cast<const uint8_t*>(ptr) + old_record.requested_size;
-            CorruptionType cstatus = CorruptionType::NONE;
-            for (size_t i = 0; i < config_.canary_footer_size; i += sizeof(uint64_t)) {
-                uint64_t val = 0;
-                size_t copy_len = (config_.canary_footer_size - i < sizeof(uint64_t)) ? (config_.canary_footer_size - i)
-                                                                                      : sizeof(uint64_t);
-                std::memcpy(&val, footer_ptr + i, copy_len);
-                uint64_t expected = CANARY_FOOTER_MAGIC;
-                if (std::memcmp(&val, &expected, copy_len) != 0) {
-                    cstatus = CorruptionType::FOOTER_CORRUPTED;
-                    break;
-                }
-            }
+        if (config_.enable_canary) {
+            size_t footer_size = config_.canary_footer_size;
+            auto* header = core::get_header_from_raw_ptr(old_record.raw_ptr);
+            CorruptionType cstatus = core::verify_canary(header, footer_size);
             if (cstatus != CorruptionType::NONE) {
                 reporter::ConsoleReporter::print_corruption_alert(std::cerr, ptr, cstatus);
             }
@@ -396,6 +462,13 @@ public:
         return profiler::FragmentationAnalyzer::analyze(get_stats(), tracker_.snapshot_all(), free_hist_);
     }
 
+    std::string get_flamegraph_svg(double width) const {
+        core::RecursionGuard guard;
+        auto active = tracker_.snapshot_all();
+        auto root = profiler::FlamegraphGenerator::build_tree(active);
+        return profiler::FlamegraphGenerator::generate_svg(root, width);
+    }
+
 private:
     Manager() { core::RecursionGuard guard; }
     ~Manager() = default;
@@ -502,13 +575,17 @@ profiler::FragmentationReport get_fragmentation_report() {
     return Manager::instance().get_fragmentation_report();
 }
 
+std::string get_flamegraph_svg(double width) {
+    return Manager::instance().get_flamegraph_svg(width);
+}
+
 }  // namespace memsentry
 
 namespace memsentry::core {
 
 void* track_alloc(size_t size, size_t alignment, const char* tag) noexcept {
     if (core::RecursionGuard::is_active() || !Manager::instance().is_initialized()) {
-        return std::malloc(size);
+        return core::raw_system_alloc(size);
     }
     return Manager::instance().allocate(size, alignment, tag);
 }
@@ -516,8 +593,8 @@ void* track_alloc(size_t size, size_t alignment, const char* tag) noexcept {
 void track_free(void* ptr) noexcept {
     if (!ptr)
         return;
-    if (core::RecursionGuard::is_active() || !Manager::instance().is_initialized()) {
-        std::free(ptr);
+    if (core::RecursionGuard::is_active()) {
+        core::raw_system_free(ptr);
         return;
     }
     Manager::instance().deallocate(ptr);
@@ -525,7 +602,7 @@ void track_free(void* ptr) noexcept {
 
 void* track_realloc(void* ptr, size_t new_size) noexcept {
     if (core::RecursionGuard::is_active() || !Manager::instance().is_initialized()) {
-        return std::realloc(ptr, new_size);
+        return core::raw_system_realloc(ptr, new_size);
     }
     return Manager::instance().reallocate(ptr, new_size);
 }
