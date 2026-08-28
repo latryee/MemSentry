@@ -19,64 +19,36 @@
 #endif
 
 static LONG WINAPI MemsentryCrashHandler(PEXCEPTION_POINTERS pExceptionInfo) {
-    if (!pExceptionInfo || !pExceptionInfo->ExceptionRecord) return EXCEPTION_CONTINUE_SEARCH;
+    if (!pExceptionInfo || !pExceptionInfo->ExceptionRecord || !pExceptionInfo->ContextRecord) {
+        return EXCEPTION_CONTINUE_SEARCH;
+    }
     DWORD code = pExceptionInfo->ExceptionRecord->ExceptionCode;
     if (code == 0xE06D7363 /* C++ exception */ || code == EXCEPTION_BREAKPOINT) {
         return EXCEPTION_CONTINUE_SEARCH;
     }
-    char buffer[256];
-    int len = snprintf(buffer, sizeof(buffer),
-        "\n[FATAL CRASH] ExceptionCode=0x%08lX Address=0x%p\n",
-        static_cast<unsigned long>(code),
-        pExceptionInfo->ExceptionRecord->ExceptionAddress
-    );
+
     HANDLE hErr = GetStdHandle(STD_ERROR_HANDLE);
-    if (hErr != INVALID_HANDLE_VALUE && hErr != nullptr && len > 0) {
-        DWORD written = 0;
-        WriteFile(hErr, buffer, static_cast<DWORD>(len), &written, nullptr);
+    if (hErr == INVALID_HANDLE_VALUE || hErr == nullptr) {
+        return EXCEPTION_CONTINUE_SEARCH;
     }
 
-    HANDLE hProcess = GetCurrentProcess();
-    SymSetOptions(SYMOPT_LOAD_LINES | SYMOPT_UNDNAME | SYMOPT_DEFERRED_LOADS);
-    SymInitialize(hProcess, nullptr, TRUE);
+    CONTEXT* pCtx = pExceptionInfo->ContextRecord;
+    uintptr_t* stack = reinterpret_cast<uintptr_t*>(pCtx->Rsp);
 
-    CONTEXT ctx = *pExceptionInfo->ContextRecord;
-    STACKFRAME64 frame{};
-    frame.AddrPC.Offset = ctx.Rip;
-    frame.AddrPC.Mode = AddrModeFlat;
-    frame.AddrFrame.Offset = ctx.Rbp;
-    frame.AddrFrame.Mode = AddrModeFlat;
-    frame.AddrStack.Offset = ctx.Rsp;
-    frame.AddrStack.Mode = AddrModeFlat;
+    char msg[512];
+    int mlen = snprintf(msg, sizeof(msg),
+        "\n[FATAL CRASH] ExceptionCode=0x%08lX RIP=0x%p RSP=0x%p\nSTACK DUMP:\n",
+        static_cast<unsigned long>(code),
+        reinterpret_cast<void*>(pCtx->Rip),
+        reinterpret_cast<void*>(pCtx->Rsp)
+    );
+    DWORD wr = 0;
+    WriteFile(hErr, msg, static_cast<DWORD>(mlen), &wr, nullptr);
 
-    for (int i = 0; i < 16; ++i) {
-        if (!StackWalk64(IMAGE_FILE_MACHINE_AMD64, hProcess, GetCurrentThread(), &frame, &ctx, nullptr,
-                         SymFunctionTableAccess64, SymGetModuleBase64, nullptr)) {
-            break;
-        }
-        if (frame.AddrPC.Offset == 0) break;
-
-        alignas(SYMBOL_INFO) uint8_t sym_buf[sizeof(SYMBOL_INFO) + 256 * sizeof(TCHAR)]{};
-        auto* symbol = reinterpret_cast<SYMBOL_INFO*>(sym_buf);
-        symbol->SizeOfStruct = sizeof(SYMBOL_INFO);
-        symbol->MaxNameLen = 255;
-        DWORD64 disp = 0;
-
-        char line_buf[256];
-        if (SymFromAddr(hProcess, frame.AddrPC.Offset, &disp, symbol)) {
-            IMAGEHLP_LINE64 line_info{};
-            line_info.SizeOfStruct = sizeof(IMAGEHLP_LINE64);
-            DWORD line_disp = 0;
-            if (SymGetLineFromAddr64(hProcess, frame.AddrPC.Offset, &line_disp, &line_info)) {
-                snprintf(line_buf, sizeof(line_buf), "  #%d 0x%llX %s (%s:%lu)\n", i, frame.AddrPC.Offset, symbol->Name, line_info.FileName, line_info.LineNumber);
-            } else {
-                snprintf(line_buf, sizeof(line_buf), "  #%d 0x%llX %s\n", i, frame.AddrPC.Offset, symbol->Name);
-            }
-        } else {
-            snprintf(line_buf, sizeof(line_buf), "  #%d 0x%llX\n", i, frame.AddrPC.Offset);
-        }
-        DWORD wr = 0;
-        WriteFile(hErr, line_buf, static_cast<DWORD>(strlen(line_buf)), &wr, nullptr);
+    for (int i = 0; i < 20; ++i) {
+        char line[128];
+        int llen = snprintf(line, sizeof(line), "  [%d] 0x%p\n", i, reinterpret_cast<void*>(stack[i]));
+        WriteFile(hErr, line, static_cast<DWORD>(llen), &wr, nullptr);
     }
     FlushFileBuffers(hErr);
     return EXCEPTION_CONTINUE_SEARCH;
