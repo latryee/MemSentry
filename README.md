@@ -11,6 +11,7 @@
 [![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey.svg?style=flat-square)](https://github.com/latryee/MemSentry)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://github.com/latryee/MemSentry/blob/main/LICENSE)
 [![vcpkg](https://img.shields.io/badge/vcpkg-port%20ready-blueviolet.svg?style=flat-square)](vcpkg/ports/memsentry)
+[![Marketplace](https://img.shields.io/badge/GitHub%20Marketplace-MemSentry-purple.svg?style=flat-square&logo=github-actions&logoColor=white)](https://github.com/marketplace/actions/memsentry-c-memory-leak-safety-profiler)
 
 <br/>
 
@@ -80,13 +81,30 @@ find_package(memsentry CONFIG REQUIRED)
 target_link_libraries(your_target PRIVATE memsentry::memsentry)
 ```
 
-### 2. vcpkg Installation
+### 2. GitHub Actions CI Integration (Marketplace)
+
+You can easily automate leak tracking and profiling directly inside your GitHub Actions pipeline:
+
+```yaml
+- name: Setup MemSentry
+  uses: latryee/MemSentry@v1
+  with:
+    build-type: 'Release'
+
+- name: Build & Test Application
+  run: |
+    cmake -B build
+    cmake --build build
+    ctest --test-dir build --output-on-failure
+```
+
+### 3. vcpkg Installation
 
 ```bash
 vcpkg install memsentry
 ```
 
-### 3. Basic Leak Audit & SVG Flamegraph Export
+### 4. Basic Leak Audit & SVG Flamegraph Export
 
 ```cpp
 #include "memsentry/memsentry.hpp"
@@ -112,7 +130,7 @@ int main() {
 }
 ```
 
-### 4. Production Poisson / Geometric Sampling Mode (<2% Overhead)
+### 5. Production Poisson / Geometric Sampling Mode (<2% Overhead)
 
 ```cpp
 #include "memsentry/memsentry.hpp"
@@ -131,7 +149,7 @@ int main() {
 }
 ```
 
-### 5. Differential Snapshot Checkpointing
+### 6. Differential Snapshot Checkpointing
 
 ```cpp
 #include "memsentry/memsentry.hpp"

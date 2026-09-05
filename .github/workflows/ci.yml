@@ -192,3 +192,21 @@ jobs:
           flags: unittests
           fail_ci_if_error: false
           token: ${{ secrets.CODECOV_TOKEN }}
+
+  action-test:
+    name: Test GitHub Action (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run MemSentry Action
+        uses: ./
+        with:
+          build-type: 'Release'
+          generate-summary: 'true'
+

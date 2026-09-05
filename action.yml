@@ -1,0 +1,212 @@
+name: 'MemSentry - C++ Memory Leak & Safety Profiler'
+description: 'Zero-overhead C++20 memory leak detector, heap profiler, and red-zone corruption checker for CI/CD pipelines.'
+author: 'latryee'
+
+branding:
+  icon: 'shield'
+  color: 'purple'
+
+inputs:
+  build-type:
+    description: 'CMake build configuration (Release, Debug, RelWithDebInfo, MinSizeRel)'
+    required: false
+    default: 'Release'
+  install-dir:
+    description: 'Custom directory prefix to install MemSentry (defaults to runner temporary directory)'
+    required: false
+    default: ''
+  enable-asan:
+    description: 'Build MemSentry with AddressSanitizer enabled (true/false)'
+    required: false
+    default: 'false'
+  enable-tsan:
+    description: 'Build MemSentry with ThreadSanitizer enabled (true/false)'
+    required: false
+    default: 'false'
+  enable-ubsan:
+    description: 'Build MemSentry with UndefinedBehaviorSanitizer enabled (true/false)'
+    required: false
+    default: 'false'
+  cmake-extra-args:
+    description: 'Additional CMake configuration arguments passed during configuration'
+    required: false
+    default: ''
+  run-command:
+    description: 'Optional command or test binary to execute under MemSentry memory audit'
+    required: false
+    default: ''
+  fail-on-leak:
+    description: 'Whether to fail the step if the audit command exits with non-zero or reports leaks'
+    required: false
+    default: 'true'
+  generate-summary:
+    description: 'Write a formatted audit and profiling summary to the GitHub Step Summary'
+    required: false
+    default: 'true'
+
+outputs:
+  install-path:
+    description: 'The directory path where MemSentry was installed'
+    value: ${{ steps.setup-memsentry.outputs.install-path }}
+  cmake-prefix:
+    description: 'The CMake prefix path configured for downstream find_package(memsentry)'
+    value: ${{ steps.setup-memsentry.outputs.cmake-prefix }}
+  audit-exit-code:
+    description: 'Exit code of the executed audit command, if any'
+    value: ${{ steps.run-audit.outputs.exit-code }}
+  reports-found:
+    description: 'List of discovered MemSentry report files (HTML, JSON, SVG flamegraphs)'
+    value: ${{ steps.generate-summary.outputs.reports }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Configure, Build, and Install MemSentry
+      id: setup-memsentry
+      shell: bash
+      run: |
+        echo "::group::🛡️ Setting up MemSentry"
+
+        # Determine clean action source path
+        ACTION_DIR="${{ github.action_path }}"
+        ACTION_DIR="${ACTION_DIR//\\//}"
+
+        # Determine clean installation directory
+        if [ -n "${{ inputs.install-dir }}" ]; then
+          INSTALL_DIR="${{ inputs.install-dir }}"
+        else
+          TEMP_ROOT="${RUNNER_TEMP:-${TMPDIR:-/tmp}}"
+          INSTALL_DIR="${TEMP_ROOT}/memsentry"
+        fi
+        INSTALL_DIR="${INSTALL_DIR//\\//}"
+
+        BUILD_DIR="${RUNNER_TEMP:-${TMPDIR:-/tmp}}/memsentry-build"
+        BUILD_DIR="${BUILD_DIR//\\//}"
+
+        echo "Action Source:   ${ACTION_DIR}"
+        echo "Build Directory: ${BUILD_DIR}"
+        echo "Install Prefix:  ${INSTALL_DIR}"
+        echo "Build Type:      ${{ inputs.build-type }}"
+
+        # Prepare sanitizer and custom flags
+        EXTRA_CMAKE_ARGS=""
+        if [ "${{ inputs.enable-asan }}" = "true" ]; then
+          EXTRA_CMAKE_ARGS="${EXTRA_CMAKE_ARGS} -DMEMSENTRY_ENABLE_ASAN=ON"
+        fi
+        if [ "${{ inputs.enable-tsan }}" = "true" ]; then
+          EXTRA_CMAKE_ARGS="${EXTRA_CMAKE_ARGS} -DMEMSENTRY_ENABLE_TSAN=ON"
+        fi
+        if [ "${{ inputs.enable-ubsan }}" = "true" ]; then
+          EXTRA_CMAKE_ARGS="${EXTRA_CMAKE_ARGS} -DMEMSENTRY_ENABLE_UBSAN=ON"
+        fi
+        if [ -n "${{ inputs.cmake-extra-args }}" ]; then
+          EXTRA_CMAKE_ARGS="${EXTRA_CMAKE_ARGS} ${{ inputs.cmake-extra-args }}"
+        fi
+
+        # Configure MemSentry
+        cmake -B "${BUILD_DIR}" -S "${ACTION_DIR}" \
+          -DCMAKE_BUILD_TYPE="${{ inputs.build-type }}" \
+          -DCMAKE_INSTALL_PREFIX="${INSTALL_DIR}" \
+          -DMEMSENTRY_BUILD_TESTS=OFF \
+          -DMEMSENTRY_BUILD_EXAMPLES=OFF \
+          ${EXTRA_CMAKE_ARGS}
+
+        # Build & Install
+        cmake --build "${BUILD_DIR}" --config "${{ inputs.build-type }}" --parallel
+        cmake --install "${BUILD_DIR}" --config "${{ inputs.build-type }}"
+
+        # Export environment variables for downstream workflow steps
+        echo "CMAKE_PREFIX_PATH=${INSTALL_DIR}${CMAKE_PREFIX_PATH:+:${CMAKE_PREFIX_PATH}}" >> "$GITHUB_ENV"
+        echo "memsentry_DIR=${INSTALL_DIR}/lib/cmake/memsentry" >> "$GITHUB_ENV"
+        echo "memsentry_ROOT=${INSTALL_DIR}" >> "$GITHUB_ENV"
+        if [ -d "${INSTALL_DIR}/bin" ]; then
+          echo "${INSTALL_DIR}/bin" >> "$GITHUB_PATH"
+        fi
+
+        # Outputs
+        echo "install-path=${INSTALL_DIR}" >> "$GITHUB_OUTPUT"
+        echo "cmake-prefix=${INSTALL_DIR}" >> "$GITHUB_OUTPUT"
+
+        echo "✅ MemSentry successfully installed to ${INSTALL_DIR}"
+        echo "::endgroup::"
+
+    - name: Run Memory Audit Command
+      id: run-audit
+      if: inputs.run-command != ''
+      shell: bash
+      run: |
+        echo "::group::🔍 Executing MemSentry Audit Command"
+        echo "Command: ${{ inputs.run-command }}"
+
+        set +e
+        eval "${{ inputs.run-command }}"
+        AUDIT_EXIT=$?
+        set -e
+
+        echo "exit-code=${AUDIT_EXIT}" >> "$GITHUB_OUTPUT"
+        echo "::endgroup::"
+
+        if [ $AUDIT_EXIT -ne 0 ]; then
+          echo "::warning::Audit command exited with status code ${AUDIT_EXIT}"
+          if [ "${{ inputs.fail-on-leak }}" = "true" ]; then
+            echo "::error::Failing step because fail-on-leak is set to true."
+            exit $AUDIT_EXIT
+          fi
+        else
+          echo "✅ Audit command completed successfully."
+        fi
+
+    - name: Generate GitHub Step Summary & Detect Artifacts
+      id: generate-summary
+      if: inputs.generate-summary == 'true' && always()
+      shell: bash
+      run: |
+        echo "::group::📊 Generating MemSentry Step Summary"
+
+        INSTALL_PATH="${{ steps.setup-memsentry.outputs.install-path }}"
+        CMD="${{ inputs.run-command }}"
+        EXIT_CODE="${{ steps.run-audit.outputs.exit-code }}"
+
+        # Portable glob search for generated diagnostics and flamegraphs
+        shopt -s nullglob
+        REPORT_LIST=( *memsentry*.html *report*.html *flamegraph*.svg *memsentry*.svg *report*.json *memsentry*.json build/*report*.html build/*flamegraph*.svg )
+
+        REPORT_STR="${REPORT_LIST[*]}"
+        echo "reports=${REPORT_STR}" >> "$GITHUB_OUTPUT"
+
+        if [ -n "$GITHUB_STEP_SUMMARY" ]; then
+          {
+            echo "## 🛡️ MemSentry Runtime Audit & Memory Profiler"
+            echo ""
+            echo "| Property | Value |"
+            echo "| :--- | :--- |"
+            if [ -n "$CMD" ]; then
+              if [ "${EXIT_CODE:-0}" -eq 0 ]; then
+                echo "| **Status** | 🟢 Passed |"
+              else
+                echo "| **Status** | 🔴 Failed (Exit Code: ${EXIT_CODE}) |"
+              fi
+              echo "| **Executed Command** | \`${CMD}\` |"
+            else
+              echo "| **Setup Status** | 🟢 Installed Ready |"
+            fi
+            echo "| **Build Type** | \`${{ inputs.build-type }}\` |"
+            echo "| **Install Prefix** | \`${INSTALL_PATH}\` |"
+            echo ""
+
+            if [ ${#REPORT_LIST[@]} -gt 0 ]; then
+              echo "### 📑 Discovered Diagnostics & Reports"
+              echo ""
+              for rep in "${REPORT_LIST[@]}"; do
+                if [ -f "$rep" ]; then
+                  FILE_SIZE=$(ls -lh "$rep" | awk '{print $5}')
+                  echo "- 📄 \`$rep\` (${FILE_SIZE})"
+                fi
+              done
+              echo ""
+              echo "> 💡 *Tip: Use \`actions/upload-artifact@v4\` to preserve and download your interactive flamegraphs and HTML dashboards.*"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+        fi
+
+        echo "::endgroup::"
